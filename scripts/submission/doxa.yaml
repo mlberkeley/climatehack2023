@@ -1,4 +1,0 @@
-competition: climatehackai-2023
-environment: cpu
-language: python
-entrypoint: run.py

@@ -23,7 +23,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load pv data by concatenating all data in this folder
 # Can modify as needed to load specific data
-data_dir = Path("/data/pv/2020/")
+data_dir = Path("/data/climatehack/official_dataset/pv/2020")
 pv = pd.concat(
     pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
     for parquet_file in data_dir.glob('*.parquet')
@@ -32,7 +32,7 @@ pv = pd.concat(
 # Once again, this is opening multiple datasets at once
 # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
 # opens a single dataset
-hrv = xr.open_mfdataset("data/satellite-hrv/2020/*.zarr.zip", engine="zarr", chunks="auto")
+hrv = xr.open_mfdataset("/data/climatehack/official_dataset/nonhrv/2020/*.zarr.zip", engine="zarr", chunks="auto")
 
 # pre-computed indices corresponding to each solar PV site stored in indices.json
 with open("indices.json") as f:
