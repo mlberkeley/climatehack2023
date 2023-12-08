@@ -5,11 +5,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import xarray as xr
+
 from ocf_blosc2 import Blosc2
 from torch.utils.data import DataLoader
 from torchinfo import summary
 import json
 from pathlib import Path
+
 from submission.model import Model
 from challenge_dataset import ChallengeDataset
 
@@ -21,7 +23,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load pv data by concatenating all data in this folder
 # Can modify as needed to load specific data
-data_dir = Path("data/pv/2020/")
+data_dir = Path("/data/pv/2020/")
 pv = pd.concat(
     pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
     for parquet_file in data_dir.glob('*.parquet')
@@ -41,7 +43,7 @@ with open("indices.json") as f:
         }
         for data_source, locations in json.load(f).items()
     }
-    
+
 summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)])
 
 # Actually do the training wow
@@ -82,6 +84,6 @@ for epoch in range(EPOCHS):
             print(f"Epoch {epoch + 1}, {i + 1}: {running_loss / count}")
 
     print(f"Epoch {epoch + 1}: {running_loss / count}")
-    
+
 # Save your model
 torch.save(model.state_dict(), "submission/model.pt")
