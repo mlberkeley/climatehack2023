@@ -1,5 +1,7 @@
 from torch.utils.data import IterableDataset
 from datetime import datetime, time, timedelta
+
+
 class ChallengeDataset(IterableDataset):
     def __init__(self, pv, hrv, site_locations, sites=None):
         self.pv = pv
@@ -49,7 +51,7 @@ class ChallengeDataset(IterableDataset):
 
                     # Get a 128x128 HRV crop centred on the site over the previous hour
                     x, y = self._site_locations["hrv"][site]
-                    hrv_features = hrv_data[:, y - 64 : y + 64, x - 64 : x + 64, 0]
+                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 0]
                     assert hrv_features.shape == (12, 128, 128)
 
                     # How might you adapt this for the non-HRV, weather and aerosol data?
@@ -57,3 +59,4 @@ class ChallengeDataset(IterableDataset):
                     continue
 
                 yield site_features, hrv_features, site_targets
+
