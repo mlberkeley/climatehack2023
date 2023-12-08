@@ -59,9 +59,9 @@ for epoch in range(EPOCHS):
         count += size
 
         if i % 200 == 199:
-            print(f"Epoch {epoch + 1}, {i + 1}: {running_loss / count}")
+            print(f"Epoch {epoch + 1}, {i + 1}: {running_loss / (count + .0000001)}")
 
-    print(f"Epoch {epoch + 1}: {running_loss / count}")
+    print(f"Epoch {epoch + 1}: {running_loss / (count + .0000001)}")
 
 # Save your model
 torch.save(model.state_dict(), "submission/model.pt")
