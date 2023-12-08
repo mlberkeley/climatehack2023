@@ -8,7 +8,7 @@ class ChallengeDataset(IterableDataset):
         self._sites = sites if sites else list(site_locations["hrv"].keys())
 
     def _get_image_times(self):
-        min_date = datetime(2020, 1, 1)
+        min_date = datetime(2020, 7, 1)
         max_date = datetime(2020, 7, 30)
 
         start_time = time(8)
@@ -26,6 +26,7 @@ class ChallengeDataset(IterableDataset):
             date += timedelta(days=1)
 
     def __iter__(self):
+        pv = self.pv
         for time in self._get_image_times():
             first_hour = slice(str(time), str(time + timedelta(minutes=55)))
 

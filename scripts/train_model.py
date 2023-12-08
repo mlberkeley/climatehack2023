@@ -11,6 +11,7 @@ from torchinfo import summary
 import json
 from pathlib import Path
 from submission.model import Model
+from challenge_dataset import ChallengeDataset
 
 plt.rcParams["figure.figsize"] = (20, 12)
 
