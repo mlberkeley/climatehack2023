@@ -25,7 +25,7 @@ def load_data(dataset_type: str = "hrv", year: int = 2021):
     # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
     # opens a single dataset
 
-    data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
+    data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
 
     return data
 
