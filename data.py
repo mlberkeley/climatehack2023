@@ -28,13 +28,13 @@ def load_data(dataset_type: str = "hrv", year: int = 2021):
     return data
 
 
-def create_dataset(dataset_type: str, year: int, site_locations, batch_size: int):
+def create_dataset(dataset_type: str, year: int, site_locations, batch_size: int, shuffle: bool = True):
     assert dataset_type in ("aerosols", "hrv", "nonhrv", "pv", "weather"), "ERROR LOADING DATA: dataset type provided is not correct [not of 'aerosols', 'hrv', 'nonhrv', 'pv' or 'weather']"
     assert year == 2020 or year == 2021, "ERROR LOADING DATA: year provided not correct [not 2020 or 2021]"
 
     pv, data = load_pv(), load_data(dataset, year)
 
     dataset = ChallengeDataset(pv, data, site_locations=site_locations)
-    dataloader = DataLoader(dataset, batch_size=batch_size, pin_memory=True)
+    dataloader = DataLoader(dataset, batch_size=batch_size, pin_memory=True, shuffle=shuffle)
 
     return dataloader
