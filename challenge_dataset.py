@@ -1,17 +1,48 @@
 from torch.utils.data import IterableDataset
 from datetime import datetime, time, timedelta
+from config import config
+from pathlib import Path
+import pandas as pd
+import xarray as xr
+from ocf_blosc2 import Blosc2
+import json
 
 
 class ChallengeDataset(IterableDataset):
-    def __init__(self, pv, hrv, site_locations, sites=None):
+    def __init__(self, sites=None):
+        # Assuming data already downloaded... see TODO some other file for this
+
+        # Load pv data by concatenating all data in this folder
+        # Can modify as needed to load specific data
+        data_dir = Path(config.data.pv_path) / "2020"
+        pv = pd.concat(
+            pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
+            for parquet_file in data_dir.glob('*.parquet')
+        )
+
+        # Once again, this is opening multiple datasets at once
+        # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
+        # opens a single dataset
+        hrv = xr.open_mfdataset(config.data.hrv_path + "/2020/*.zarr.zip", engine="zarr", chunks="auto")
+        # nonhrv = xr.open_mfdataset("/data/climatehack/official_dataset/nonhrv/2020/*.zarr.zip", engine="zarr", chunks="auto")
+
+        # pre-computed indices corresponding to each solar PV site stored in indices.json
+        with open("indices.json") as f:
+            site_locations = {
+                data_source: {
+                    int(site): (int(location[0]), int(location[1]))
+                    for site, location in locations.items()
+                } for data_source, locations in json.load(f).items()
+            }
         self.pv = pv
         self.hrv = hrv
+        # self.nonhrv = nonhrv
         self._site_locations = site_locations
         self._sites = sites if sites else list(site_locations["hrv"].keys())
 
     def _get_image_times(self):
-        min_date = datetime(2020, 7, 1)
-        max_date = datetime(2020, 7, 30)
+        min_date = config.data.start_date
+        max_date = config.data.end_date
 
         start_time = time(8)
         end_time = time(17)
