@@ -75,7 +75,7 @@ class ChallengeDataset(IterableDataset):
                 drop_level=False,
             )
 
-            hrv_data = self.hrv["data"].sel(time=first_hour).to_numpy()
+            hrv_data = self.data["data"].sel(time=first_hour).to_numpy()
 
             for site in self._sites:
                 try:

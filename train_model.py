@@ -27,7 +27,7 @@ model = Model().to(device)
 criterion = nn.MSELoss()
 optimiser = optim.Adam(model.parameters(), lr=config.train.lr)
 
-dataset = ChallengeDataset()
+dataset = ChallengeDataset("hrv", 2020)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
 
 for epoch in range(config.train.num_epochs):
