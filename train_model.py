@@ -14,6 +14,11 @@ from config import config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+if device == "cpu":
+    print("====================")
+    for i in range(10):
+        print("YOU ARE IN CPU MODE")
+
 
 summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)])
 
@@ -49,6 +54,7 @@ for epoch in range(config.train.num_epochs):
 
         if i % 200 == 199:
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / (count + .0000001)}")
+            os.makedirs("submission", exist_ok=True)
             torch.save(model.state_dict(), "submission/model.pt")
 
     print(f"Epoch {epoch + 1}: {running_loss / (count + .0000001)}")
