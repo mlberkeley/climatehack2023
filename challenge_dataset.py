@@ -9,12 +9,15 @@ import json
 
 
 class ChallengeDataset(IterableDataset):
-    def __init__(self, sites=None):
+    def __init__(self, dataset_type: str, year: int, sites=None):
+        assert dataset_type in ("aerosols", "hrv", "nonhrv", "pv", "weather"), "ERROR LOADING DATA: dataset type provided is not correct [not of 'aerosols', 'hrv', 'nonhrv', 'pv' or 'weather']"
+        assert year == 2020 or year == 2021, "ERROR LOADING DATA: year provided not correct [not 2020 or 2021]"
+
         # Assuming data already downloaded... see TODO some other file for this
 
         # Load pv data by concatenating all data in this folder
         # Can modify as needed to load specific data
-        data_dir = Path(config.data.pv_path) / "2020"
+        data_dir = Path(f"/data/climatehack/official_dataset/pv/{year}")
         pv = pd.concat(
             pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
             for parquet_file in data_dir.glob('*.parquet')
@@ -23,7 +26,7 @@ class ChallengeDataset(IterableDataset):
         # Once again, this is opening multiple datasets at once
         # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
         # opens a single dataset
-        hrv = xr.open_mfdataset(config.data.hrv_path + "/2020/*.zarr.zip", engine="zarr", chunks="auto")
+        data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
         # nonhrv = xr.open_mfdataset("/data/climatehack/official_dataset/nonhrv/2020/*.zarr.zip", engine="zarr", chunks="auto")
 
         # pre-computed indices corresponding to each solar PV site stored in indices.json
@@ -35,7 +38,7 @@ class ChallengeDataset(IterableDataset):
                 } for data_source, locations in json.load(f).items()
             }
         self.pv = pv
-        self.hrv = hrv
+        self.data = data
         # self.nonhrv = nonhrv
         self._site_locations = site_locations
         self._sites = sites if sites else list(site_locations["hrv"].keys())
