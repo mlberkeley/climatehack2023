@@ -162,3 +162,4 @@ cython_debug/
 # ClimateHack.AI 2023
 data/
 out
+*.pt
