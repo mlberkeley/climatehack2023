@@ -87,6 +87,7 @@ class ChallengeDataset(IterableDataset):
                     # Get a 128x128 HRV crop centred on the site over the previous hour
                     x, y = self._site_locations["hrv"][site]
                     hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 0]
+                    hrv_features = hrv_features[:, ::-1]
                     assert hrv_features.shape == (12, 128, 128)
 
                     # How might you adapt this for the non-HRV, weather and aerosol data?
@@ -95,3 +96,24 @@ class ChallengeDataset(IterableDataset):
 
                 yield site_features, hrv_features, site_targets
 
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import cv2
+
+    # load and visualize a singlular training example
+    dataset = ChallengeDataset("hrv", 2020)
+    for site_features, hrv_features, site_targets in dataset:
+        print(site_features.shape, hrv_features.shape, site_targets.shape)
+        print(hrv_features.min(), hrv_features.max())
+
+        plt.plot(np.arange(0, 1, 1/12), site_features, color="red")
+        plt.plot(np.arange(1, 5, 1/12), site_targets, color="blue")
+        Path("vis").mkdir(exist_ok=True)
+        plt.savefig("vis/power.jpg")
+
+        hrv_image = (np.hstack(hrv_features) * 255).astype(np.uint8)
+        cv2.imwrite("vis/hrv.jpg", hrv_image)
+
+        break
