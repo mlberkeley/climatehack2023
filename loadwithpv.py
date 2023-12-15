@@ -8,7 +8,6 @@ from pathlib import Path
 import pandas as pd
 from datetime import datetime, time, timedelta
 
-
 months_num = 12
 class NonHrvDataset(Dataset):
     """Face Landmarks dataset."""
@@ -81,10 +80,14 @@ class NonHrvDataset(Dataset):
 
         year = 2021
         data_dir = Path(f"/data/climatehack/official_dataset/pv/{year}")
-        pv = pd.concat(
-            pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
-            for parquet_file in data_dir.glob('*.parquet')
-        )
+
+        # pv = pd.concat(
+        #     pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
+        #     for parquet_file in data_dir.glob('*.parquet')
+        # )
+
+        pv = [pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
+            for parquet_file in data_dir.glob('*.parquet')]
 
         self.pv = pv
         self._site_locations = site_locations
@@ -122,7 +125,11 @@ class NonHrvDataset(Dataset):
                 print(time)
                 print(repr(time))
                 time2 = pd.Timestamp(time, tz='UTC')
-                site_ls = pv[pv.index.get_level_values('timestamp') == time2]
+                #site_ls = pv[pv.index.get_level_values('timestamp') == time2]
+                print(any(pv.loc[lambda x: x.index.get_level_values("timestamp") == time2]))
+                print(any(pv.loc[lambda x: x.index.get_level_values("timestamp") == time]))
+
+
                 print(site_ls)
                 #site = site_ls[np.random.randint(0, len(site_ls))][1]
                 site = site_ls.index[0][1]
@@ -136,4 +143,19 @@ class NonHrvDataset(Dataset):
                 nonhrv_features = nonhrv[:, y - 64 : y + 64, x - 64 : x + 64]
                     
                 return nonhrv_features, pv_features 
+
+
+                def get_pv_truth(self, date, ss_id=2607, hours="four"):
+                    assert hours in ["four", "one", "point"]
+                    pv = self.pv[date.month - 1]
+
+                    if hours == "four":
+                        id_select = pv.loc[lambda x: x.index.get_level_values("ss_id") == ss_id] 
+                        return id_select.loc[lambda x: (date <= x.index.get_level_values("timestamp") + timedelta(hours=1)) & (x.index.get_level_values("timestamp") < (date + pd.Timedelta(hours=5)))].to_numpy()[:,1]
+                    if hours == "one":
+                        id_select = pv.loc[lambda x: x.index.get_level_values("ss_id") == ss_id] 
+                        return id_select.loc[lambda x: (date <= x.index.get_level_values("timestamp")) & (x.index.get_level_values("timestamp") < (date + pd.Timedelta(hours=1)))].to_numpy()[:,1]
+                    if hours == "point":
+                        return pv.loc([(date, ss_id)]).to_numpy()[1]
+                    
 
