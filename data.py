@@ -12,7 +12,8 @@ class ChallengeDataset(IterableDataset):
     def __init__(self, dataset_type: str, year: int, sites=None):
         assert dataset_type in ("aerosols", "hrv", "nonhrv", "pv", "weather"), "ERROR LOADING DATA: dataset type provided is not correct [not of 'aerosols', 'hrv', 'nonhrv', 'pv' or 'weather']"
         assert year == 2020 or year == 2021, "ERROR LOADING DATA: year provided not correct [not 2020 or 2021]"
-
+        
+        self.dataset_type = dataset_type
         # Assuming data already downloaded... see TODO some other file for this
 
         # Load pv data by concatenating all data in this folder
@@ -23,9 +24,9 @@ class ChallengeDataset(IterableDataset):
             for parquet_file in data_dir.glob('*.parquet')
         )
 
-        # Once again, this is opening multiple datasets at once
-        # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
         # opens a single dataset
+        # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
+        
         data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
         # nonhrv = xr.open_mfdataset("/data/climatehack/official_dataset/nonhrv/2020/*.zarr.zip", engine="zarr", chunks="auto")
 
@@ -39,9 +40,8 @@ class ChallengeDataset(IterableDataset):
             }
         self.pv = pv
         self.data = data
-        # self.nonhrv = nonhrv
         self._site_locations = site_locations
-        self._sites = sites if sites else list(site_locations["hrv"].keys())
+        self._sites = sites if sites else list(site_locations[dataset_type].keys())
 
     def _get_image_times(self):
         min_date = config.data.start_date
@@ -85,9 +85,8 @@ class ChallengeDataset(IterableDataset):
                     assert site_features.shape == (12,) and site_targets.shape == (48,)
 
                     # Get a 128x128 HRV crop centred on the site over the previous hour
-                    x, y = self._site_locations["hrv"][site]
-                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 0]
-                    hrv_features = hrv_features[:, ::-1]
+                    x, y = self._site_locations[self.dataset_type][site]
+                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 7]
                     assert hrv_features.shape == (12, 128, 128)
 
                     # How might you adapt this for the non-HRV, weather and aerosol data?

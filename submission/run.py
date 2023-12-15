@@ -37,10 +37,13 @@ class Evaluator(BaseEvaluator):
             # Select the variables you wish to use here!
             for pv, hrv in self.batch(features, variables=["pv", "hrv"], batch_size=32):
                 # Produce solar PV predictions for this batch
-                yield self.model(
+                print(hrv.shape, hrv.min(), hrv.max(), file=sys.stderr)
+                a = self.model(
                     torch.from_numpy(pv).to(device),
                     torch.from_numpy(hrv).to(device),
                 )
+                print(a, file=sys.stderr)
+                yield a
 
 
 if __name__ == "__main__":
