@@ -21,13 +21,15 @@ if device == "cpu":
 
 
 summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)])
+data = "hrv"
+year = 2020
 
 # Actually do the training wow
 model = Model().to(device)
 criterion = nn.MSELoss()
 optimiser = optim.Adam(model.parameters(), lr=config.train.lr)
 
-dataset = ChallengeDataset("hrv", 2020)
+dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
 
 for epoch in range(config.train.num_epochs):
