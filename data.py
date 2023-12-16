@@ -20,10 +20,14 @@ class ChallengeDataset(IterableDataset):
         # Load pv data by concatenating all data in this folder
         # Can modify as needed to load specific data
         data_dir = Path(f"/data/climatehack/official_dataset/pv/{year}")
-        pv = pd.concat(
-            pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
-            for parquet_file in data_dir.glob('*.parquet')
-        )
+
+        months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{i}.parquet").drop("generation_wh", axis=1) for i in range(1, 13)]
+        pv = pd.concat(months)
+
+        #pv = pd.concat(
+            #pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
+            #for parquet_file in [data_dir.glob(f'{i}.parquet') for i in range(1, 13)]
+        #)
 
         # opens a single dataset
         # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
