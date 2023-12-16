@@ -11,6 +11,13 @@ from torch.utils.data import DataLoader
 from submission.model import Model
 
 from submission.config import config
+import wandb
+
+wandb.init(
+    entity="mlatberkeley",
+    project="climatehack23",
+    config=dict(config)
+)
 
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -57,7 +64,8 @@ for epoch in range(config.train.num_epochs):
         count += size
 
         if i % 200 == 199:
-            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / (count + .0000001)}")
+            wandb.log({"loss": running_loss / count})
+            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}")
             os.makedirs("submission", exist_ok=True)
             torch.save(model.state_dict(), "submission/model.pt")
 
@@ -66,3 +74,5 @@ for epoch in range(config.train.num_epochs):
 # Save your model
 os.makedirs("submission", exist_ok=True)
 torch.save(model.state_dict(), "submission/model.pt")
+
+wandb.finish()
