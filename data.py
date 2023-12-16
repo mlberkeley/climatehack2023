@@ -81,39 +81,35 @@ class ChallengeDataset(IterableDataset):
 
             hrv_data = self.data["data"].sel(time=first_hour).to_numpy()
             for site in self._sites:
-                try:
-                    # Get solar PV features and targets
-                    site_features = pv_features.xs(site, level=1).to_numpy().squeeze(-1)
-                    site_targets = pv_targets.xs(site, level=1).to_numpy().squeeze(-1)
-                    if not (site_features.shape == (12,) and site_targets.shape == (48,)):
-                        # print('WARNING: pv out of range')
-                        continue
-
-                    # Get a 128x128 HRV crop centred on the site over the previous hour
-                    if not (site in self._site_locations[self.dataset_type]): 
-                        # print("site not avail")
-                        continue
-
-                    x, y = self._site_locations[self.dataset_type][site]
-                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
-                    if (hrv_features != hrv_features).any():
-                        print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
-                        continue
-
-                    if not (hrv_features.shape == (12, 128, 128)):
-                        # print('hrv shape mismatch')
-                        continue
-
-                    # How might you adapt this for the non-HRV, weather and aerosol data?
-                except AssertionError as e:
-                    print("Assertion Error")
+                # Get solar PV features and targets
+                if not (site in pv_features.index.get_level_values('ss_id')):
                     continue
-                except KeyError as e:
-                    print("keyerror")
+                if not (site in pv_targets.index.get_level_values('ss_id')):
                     continue
-                except Exception as e:
-                    print('EXCEPTION in data.py:', e)
+                
+                site_features = pv_features.xs(site, level=1).to_numpy().squeeze(-1)
+                site_targets = pv_targets.xs(site, level=1).to_numpy().squeeze(-1)
+
+                if not (site_features.shape == (12,) and site_targets.shape == (48,)):
+                    # print('WARNING: pv out of range')
                     continue
+
+                # Get a 128x128 HRV crop centred on the site over the previous hour
+                if not (site in self._site_locations[self.dataset_type]): 
+                    # print("site not avail")
+                    continue
+
+                x, y = self._site_locations[self.dataset_type][site]
+
+                hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
+                if (hrv_features != hrv_features).any():
+                    print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
+                    continue
+
+                if not (hrv_features.shape == (12, 128, 128)):
+                    # print('hrv shape mismatch')
+                    continue
+
 
                 date_string = time.strftime("%Y%m%d%H%M%S")
                 date_int = int(date_string)
