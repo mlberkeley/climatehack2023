@@ -25,7 +25,6 @@ def get_pv_at_time(year, month, day, hour, minute, ss_id=2607, four_hours = Fals
 
 months_num = 12
 class NonHrvDataset(Dataset):
-    """Face Landmarks dataset."""
 
     def __init__(self, data_path="/data/climatehack/official_dataset/nonhrv"):
         self.data_path = data_path

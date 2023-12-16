@@ -15,7 +15,6 @@ class ChallengeDataset(IterableDataset):
         assert year == 2020 or year == 2021, "ERROR LOADING DATA: year provided not correct [not 2020 or 2021]"
 
         self.dataset_type = dataset_type
-        # Assuming data already downloaded... see TODO some other file for this
 
         # Load pv data by concatenating all data in this folder
         # Can modify as needed to load specific data
@@ -81,7 +80,6 @@ class ChallengeDataset(IterableDataset):
             )
 
             hrv_data = self.data["data"].sel(time=first_hour).to_numpy()
-
             for site in self._sites:
                 try:
                     # Get solar PV features and targets
