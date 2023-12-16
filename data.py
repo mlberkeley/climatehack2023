@@ -95,9 +95,7 @@ class ChallengeDataset(IterableDataset):
                         continue
 
                     x, y = self._site_locations[self.dataset_type][site]
-
-                    hrv_features = hrv_data[:, y - 64 : y + 64, x - 64 : x + 64, 7]
-
+                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
                     if (hrv_features != hrv_features).any():
                         print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
                         continue
