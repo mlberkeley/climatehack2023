@@ -12,6 +12,7 @@ from submission.model import Model
 
 from config import config
 
+torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 if device == "cpu":
@@ -21,13 +22,13 @@ if device == "cpu":
 
 
 summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)])
-data = "hrv"
+data = "nonhrv"
 year = 2020
 
 # Actually do the training wow
 model = Model().to(device)
 criterion = nn.MSELoss()
-optimiser = optim.Adam(model.parameters(), lr=config.train.lr)
+optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
 
 dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
@@ -37,8 +38,8 @@ for epoch in range(config.train.num_epochs):
 
     running_loss = 0.0
     count = 0
-    for i, (pv_features, hrv_features, pv_targets) in enumerate(dataloader):
-        optimiser.zero_grad()
+    for i, (time, site, pv_features, hrv_features, pv_targets) in enumerate(dataloader):
+        optimizer.zero_grad()
 
         predictions = model(
             pv_features.to(device, dtype=torch.float),
@@ -48,7 +49,8 @@ for epoch in range(config.train.num_epochs):
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
         loss.backward()
 
-        optimiser.step()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.clip_grad_norm)
+        optimizer.step()
 
         size = int(pv_targets.size(0))
         running_loss += float(loss) * size
