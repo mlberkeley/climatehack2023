@@ -86,7 +86,7 @@ class ChallengeDataset(IterableDataset):
                     continue
                 if not (site in pv_targets.index.get_level_values('ss_id')):
                     continue
-                
+
                 site_features = pv_features.xs(site, level=1).to_numpy().squeeze(-1)
                 site_targets = pv_targets.xs(site, level=1).to_numpy().squeeze(-1)
 
@@ -95,7 +95,7 @@ class ChallengeDataset(IterableDataset):
                     continue
 
                 # Get a 128x128 HRV crop centred on the site over the previous hour
-                if not (site in self._site_locations[self.dataset_type]): 
+                if not (site in self._site_locations[self.dataset_type]):
                     # print("site not avail")
                     continue
 
@@ -118,13 +118,14 @@ class ChallengeDataset(IterableDataset):
 
 
 if __name__ == "__main__":
+    import cv2
+    import imageio
     import matplotlib.pyplot as plt
     import numpy as np
-    import cv2
 
     # load and visualize a singlular training example
-    dataset = ChallengeDataset("hrv", 2020)
-    for site_features, hrv_features, site_targets in dataset:
+    dataset = ChallengeDataset("nonhrv", 2020)
+    for date, site, site_features, hrv_features, site_targets in dataset:
         print(site_features.shape, hrv_features.shape, site_targets.shape)
         print(hrv_features.min(), hrv_features.max())
 
@@ -133,7 +134,12 @@ if __name__ == "__main__":
         Path("vis").mkdir(exist_ok=True)
         plt.savefig("vis/power.jpg")
 
-        hrv_image = (np.hstack(hrv_features) * 255).astype(np.uint8)
+        hrv_features = (hrv_features * 255).astype(np.uint8)
+        hrv_image = np.hstack(hrv_features)
         cv2.imwrite("vis/hrv.jpg", hrv_image)
+
+        with imageio.get_writer("vis/vis.gif", mode="I") as writer:
+            for idx, frame in enumerate(hrv_features):
+                writer.append_data(frame)
 
         break
