@@ -8,6 +8,7 @@ import h5py
 import torch
 from competition import BaseEvaluator
 from model import Model
+from config import config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -37,7 +38,7 @@ class Evaluator(BaseEvaluator):
             # Select the variables you wish to use here!
             for pv, hrv in self.batch(features, variables=["pv", "nonhrv"], batch_size=32):
                 # Produce solar PV predictions for this batch
-                hrv = hrv[...,7]
+                hrv = hrv[...,config.data.channel]
                 a = self.model(
                     torch.from_numpy(pv).to(device),
                     torch.from_numpy(hrv).to(device),
