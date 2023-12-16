@@ -7,7 +7,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 import h5py
 import torch
 from competition import BaseEvaluator
-from model import Model
+from resnet import Model
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

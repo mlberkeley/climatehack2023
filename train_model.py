@@ -8,7 +8,8 @@ import json
 
 from data import ChallengeDataset
 from torch.utils.data import DataLoader
-from submission.model import Model
+# from submission.model import Model
+from submission.resnet import Model
 
 from submission.config import config
 
