@@ -70,13 +70,16 @@ class ChallengeDataset(IterableDataset):
         for time in self._get_image_times():
             first_hour = slice(str(time), str(time + timedelta(minutes=55)))
 
-            pv_features = pv.xs(first_hour, drop_level=False)  # type: ignore
+            pv_features = pv.xs(
+                    first_hour,
+                    # drop_level=False
+            )  # type: ignore
             pv_targets = pv.xs(
                 slice(  # type: ignore
                     str(time + timedelta(hours=1)),
                     str(time + timedelta(hours=4, minutes=55)),
                 ),
-                drop_level=False,
+                # drop_level=False,
             )
 
             hrv_data = self.data["data"].sel(time=first_hour).to_numpy()
@@ -87,8 +90,8 @@ class ChallengeDataset(IterableDataset):
                 if not (site in pv_targets.index.get_level_values('ss_id')):
                     continue
 
-                site_features = pv_features.xs(site, level=1).to_numpy().squeeze(-1)
-                site_targets = pv_targets.xs(site, level=1).to_numpy().squeeze(-1)
+                site_features = pv_features.xs(site).to_numpy().squeeze(-1)
+                site_targets = pv_targets.xs(site).to_numpy().squeeze(-1)
 
                 if not (site_features.shape == (12,) and site_targets.shape == (48,)):
                     # print('WARNING: pv out of range')
@@ -102,8 +105,8 @@ class ChallengeDataset(IterableDataset):
                 x, y = self._site_locations[self.dataset_type][site]
 
                 hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
-                #if (hrv_features != hrv_features).any():
-                if np.isnan(hrv_features[0,0,0]):
+                # if (hrv_features != hrv_features).any():
+                if np.isnan(hrv_features[:,0,0]).any() or np.isnan(hrv_features[:,-1,-1]).any():
                     print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
                     continue
 
