@@ -21,7 +21,7 @@ def benchmark(dataloader: iter, n_iter: int = 100):
 def main():
     iter_dataset = ChallengeDataset("nonhrv", 2020)
     dataloader = DataLoader(iter_dataset, batch_size=config.train.batch_size, pin_memory=True)
-    time = benchmark(dataloader)
+    time = benchmark(dataloader, n_iter=100)
     print(f'ChallengeDataset: {time}')
 
 

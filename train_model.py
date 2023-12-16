@@ -1,18 +1,21 @@
+from datetime import datetime
+import json
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
+from torch.utils.data import DataLoader
 from torchinfo import summary
-import json
+import wandb
 
 from data import ChallengeDataset
-from torch.utils.data import DataLoader
 # from submission.model import Model
 from submission.resnet import Model
-
 from submission.config import config
-import wandb
+from util import util
+
 
 wandb.init(
     entity="mlatberkeley",
@@ -42,6 +45,7 @@ dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
 
 for epoch in range(config.train.num_epochs):
+    print(f"[{datetime.now()}]: Epoch {epoch + 1}")
     model.train()
 
     running_loss = 0.0
@@ -65,12 +69,21 @@ for epoch in range(config.train.num_epochs):
         count += size
 
         if i % 200 == 199:
-            wandb.log({"loss": running_loss / count})
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}")
             os.makedirs("submission", exist_ok=True)
             torch.save(model.state_dict(), "submission/model.pt")
 
-    print(f"Epoch {epoch + 1}: {running_loss / (count + .0000001)}")
+            sample_pv, sample_vis = util.visualize_example(
+                pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
+            )
+
+            wandb.log({
+                "train_loss": running_loss / count,
+                "sample_pv": sample_pv,
+                "sample_vis": sample_vis,
+            })
+
+    print(f"Epoch {epoch + 1}: {running_loss / count}")
 
 # Save your model
 os.makedirs("submission", exist_ok=True)

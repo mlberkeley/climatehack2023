@@ -5,8 +5,8 @@ config = edict()
 
 # TRAIN CONFIG
 config.train = edict()
-config.train.batch_size = 32
-config.train.num_epochs = 1
+config.train.batch_size = 128
+config.train.num_epochs = 36
 config.train.num_workers = 8
 config.train.lr = 1e-3
 config.train.clip_grad_norm = 1.
