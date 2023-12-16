@@ -106,8 +106,10 @@ class ChallengeDataset(IterableDataset):
 
                     # How might you adapt this for the non-HRV, weather and aerosol data?
                 except AssertionError as e:
+                    print("Assertion Error")
                     continue
                 except KeyError as e:
+                    print("keyerror")
                     continue
                 except Exception as e:
                     print('EXCEPTION in data.py:', e)
