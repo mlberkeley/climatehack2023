@@ -35,14 +35,13 @@ class Evaluator(BaseEvaluator):
 
         with torch.inference_mode():
             # Select the variables you wish to use here!
-            for pv, hrv in self.batch(features, variables=["pv", "hrv"], batch_size=32):
+            for pv, hrv in self.batch(features, variables=["pv", "nonhrv"], batch_size=32):
                 # Produce solar PV predictions for this batch
-                print(hrv.shape, hrv.min(), hrv.max(), file=sys.stderr)
+                hrv = hrv[...,7]
                 a = self.model(
                     torch.from_numpy(pv).to(device),
                     torch.from_numpy(hrv).to(device),
                 )
-                print(a, file=sys.stderr)
                 yield a
 
 

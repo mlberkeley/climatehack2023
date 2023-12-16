@@ -79,15 +79,17 @@ class NonHrvDataset(Dataset):
             }
 
         year = 2021
-        data_dir = Path(f"/data/climatehack/official_dataset/pv/{year}")
+        #data_dir = Path(f"/data/climatehack/official_dataset/pv/{year}")
 
         # pv = pd.concat(
         #     pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
         #     for parquet_file in data_dir.glob('*.parquet')
         # )
 
-        pv = [pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
-            for parquet_file in data_dir.glob('*.parquet')]
+        #pv = [pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
+            #for parquet_file in data_dir.glob('*.parquet')]
+
+        pv = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{month}.parquet").drop("generation_wh", axis=1) for month in range(1,13)]
 
         self.pv = pv
         self._site_locations = site_locations
@@ -100,13 +102,14 @@ class NonHrvDataset(Dataset):
         return self.data_len
 
     def __getitem__(self, idx):
-        pv = self.pv
 
-        idx = self.index_map[idx]
+        idx_real = self.index_map[idx]
         for tup in self.month_map:
+            month = tup[0]
             if idx >= tup[1]:
                 nonhrv = self.data_2021[tup[0]]["data"][idx - tup[1] : idx - tup[1] + 12]
 
+                pv = self.pv[month]
                 time = pd.to_datetime(np.datetime_as_string(self.data_2021[tup[0]]["time"][idx - tup[1]]))
 
                 first_hour = slice(str(time), str(time + timedelta(minutes=55)))
@@ -126,13 +129,17 @@ class NonHrvDataset(Dataset):
                 print(repr(time))
                 time2 = pd.Timestamp(time, tz='UTC')
                 #site_ls = pv[pv.index.get_level_values('timestamp') == time2]
-                print(any(pv.loc[lambda x: x.index.get_level_values("timestamp") == time2]))
-                print(any(pv.loc[lambda x: x.index.get_level_values("timestamp") == time]))
+                site_ls = pv.loc[lambda x: x.index.get_level_values("timestamp") == time2]
+
+                #self.d_pv = pv
+                #self.d_site_ls = site_ls
+                #self.d_time2 = time2
+                #self.d_pv_features = pv_features
 
 
-                print(site_ls)
+                #print(site_ls)
                 #site = site_ls[np.random.randint(0, len(site_ls))][1]
-                site = site_ls.index[0][1]
+                site = site_ls.index[np.random.randint(0, len(site_ls))][1]
 
                 print(site)
 
@@ -142,20 +149,9 @@ class NonHrvDataset(Dataset):
                 x, y = self._site_locations["nonhrv"][site]
                 nonhrv_features = nonhrv[:, y - 64 : y + 64, x - 64 : x + 64]
                     
-                return nonhrv_features, pv_features 
+                return nonhrv_features, site_features, site_targets 
 
 
-                def get_pv_truth(self, date, ss_id=2607, hours="four"):
-                    assert hours in ["four", "one", "point"]
-                    pv = self.pv[date.month - 1]
-
-                    if hours == "four":
-                        id_select = pv.loc[lambda x: x.index.get_level_values("ss_id") == ss_id] 
-                        return id_select.loc[lambda x: (date <= x.index.get_level_values("timestamp") + timedelta(hours=1)) & (x.index.get_level_values("timestamp") < (date + pd.Timedelta(hours=5)))].to_numpy()[:,1]
-                    if hours == "one":
-                        id_select = pv.loc[lambda x: x.index.get_level_values("ss_id") == ss_id] 
-                        return id_select.loc[lambda x: (date <= x.index.get_level_values("timestamp")) & (x.index.get_level_values("timestamp") < (date + pd.Timedelta(hours=1)))].to_numpy()[:,1]
-                    if hours == "point":
-                        return pv.loc([(date, ss_id)]).to_numpy()[1]
-                    
-
+if __name__ == "__main__":
+    data = NonHrvDataset()
+    print(data[0])

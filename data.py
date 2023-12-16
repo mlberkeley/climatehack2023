@@ -1,3 +1,4 @@
+import numpy as np
 from torch.utils.data import IterableDataset
 from datetime import datetime, time, timedelta
 from config import config
@@ -12,20 +13,24 @@ class ChallengeDataset(IterableDataset):
     def __init__(self, dataset_type: str, year: int, sites=None):
         assert dataset_type in ("aerosols", "hrv", "nonhrv", "pv", "weather"), "ERROR LOADING DATA: dataset type provided is not correct [not of 'aerosols', 'hrv', 'nonhrv', 'pv' or 'weather']"
         assert year == 2020 or year == 2021, "ERROR LOADING DATA: year provided not correct [not 2020 or 2021]"
-        
+
         self.dataset_type = dataset_type
 
         # Load pv data by concatenating all data in this folder
         # Can modify as needed to load specific data
         data_dir = Path(f"/data/climatehack/official_dataset/pv/{year}")
-        pv = pd.concat(
-            pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
-            for parquet_file in data_dir.glob('*.parquet')
-        )
+
+        months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{i}.parquet").drop("generation_wh", axis=1) for i in range(1, 13)]
+        pv = pd.concat(months)
+
+        #pv = pd.concat(
+            #pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
+            #for parquet_file in [data_dir.glob(f'{i}.parquet') for i in range(1, 13)]
+        #)
 
         # opens a single dataset
         # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
-        
+
         data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
         # nonhrv = xr.open_mfdataset("/data/climatehack/official_dataset/nonhrv/2020/*.zarr.zip", engine="zarr", chunks="auto")
 
@@ -80,18 +85,29 @@ class ChallengeDataset(IterableDataset):
                     # Get solar PV features and targets
                     site_features = pv_features.xs(site, level=1).to_numpy().squeeze(-1)
                     site_targets = pv_targets.xs(site, level=1).to_numpy().squeeze(-1)
-                    assert site_features.shape == (12,) and site_targets.shape == (48,)
+                    assert site_features.shape == (12,) and site_targets.shape == (48,), 'pv out of range'
                     
                     # Get a 128x128 HRV crop centred on the site over the previous hour
                     x, y = self._site_locations[self.dataset_type][site]
-                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 0]
+                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 7]
+                    if (hrv_features != hrv_features).any():
+                        print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
+                        continue
                     assert hrv_features.shape == (12, 128, 128)
                     
                     # How might you adapt this for the non-HRV, weather and aerosol data?
-                except:
+                except AssertionError as e:
+                    continue
+                except KeyError as e:
+                    continue
+                except Exception as e:
+                    print('EXCEPTION in data.py:', e)
                     continue
 
-                yield site_features, hrv_features, site_targets
+                date_string = time.strftime("%Y%m%d%H%M%S")
+                date_int = int(date_string)
+
+                yield date_int, site, site_features, hrv_features, site_targets
 
 
 if __name__ == "__main__":

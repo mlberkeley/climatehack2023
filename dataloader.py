@@ -4,6 +4,25 @@ from ocf_blosc2 import Blosc2
 from functools import reduce
 import numpy as np
 
+def get_pv_at_time(year, month, day, hour, minute, ss_id=2607, four_hours = False):
+    assert year in [2020, 2021], "year not 2020 or 2021"
+    assert minute % 5 == 0, "minute not multiple of 5"
+    assert 1 <= hour <= 24, "hour not between 4 and 21"
+    try:
+        date = datetime(year=year, month=month, day=day, hour=hour, minute=minute, tzinfo=timezone(timedelta(hours=0)))
+        print(date)
+    except:
+        print("date invalid")
+        return
+    pv = pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{month}.parquet")
+
+    if four_hours:
+        id_select = pv.loc[lambda x: x.index.get_level_values("ss_id") == ss_id]
+        return id_select.loc[lambda x: (date <= x.index.get_level_values("timestamp")) & (x.index.get_level_values("timestamp") < (date + pd.Timedelta(hours=4)))].to_numpy()
+    else:
+        return pv.loc([(date, ss_id)]).to_numpy()
+
+
 months_num = 12
 class NonHrvDataset(Dataset):
 
