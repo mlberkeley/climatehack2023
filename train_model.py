@@ -10,7 +10,7 @@ from data import ChallengeDataset
 from torch.utils.data import DataLoader
 from submission.model import Model
 
-from config import config
+from submission.config import config
 
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

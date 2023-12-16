@@ -17,4 +17,4 @@ config.data.hrv_path = "/data/climatehack/official_dataset/hrv"
 config.data.nonhrv_path = "/data/climatehack/official_dataset/nonhrv"
 config.data.start_date = datetime(2020, 7, 1)
 config.data.end_date = datetime(2020, 7, 30)
-config.data.channel = 7
+config.data.channel = 8

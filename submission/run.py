@@ -8,7 +8,7 @@ import h5py
 import torch
 from competition import BaseEvaluator
 from model import Model
-from config import config
+from submission.config import config
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

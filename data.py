@@ -1,7 +1,7 @@
 import numpy as np
 from torch.utils.data import IterableDataset
 from datetime import datetime, time, timedelta
-from config import config
+from submission.config import config
 from pathlib import Path
 import pandas as pd
 import xarray as xr
