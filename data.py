@@ -85,7 +85,7 @@ class ChallengeDataset(IterableDataset):
                     # Get solar PV features and targets
                     site_features = pv_features.xs(site, level=1).to_numpy().squeeze(-1)
                     site_targets = pv_targets.xs(site, level=1).to_numpy().squeeze(-1)
-                    if not (site_features.shape == (12,) and site_targets.shape == (48,))):
+                    if not (site_features.shape == (12,) and site_targets.shape == (48,)):
                         # print('WARNING: pv out of range')
                         continue
 
