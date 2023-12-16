@@ -14,7 +14,6 @@ class ChallengeDataset(IterableDataset):
         assert year == 2020 or year == 2021, "ERROR LOADING DATA: year provided not correct [not 2020 or 2021]"
         
         self.dataset_type = dataset_type
-        # Assuming data already downloaded... see TODO some other file for this
 
         # Load pv data by concatenating all data in this folder
         # Can modify as needed to load specific data
@@ -76,19 +75,18 @@ class ChallengeDataset(IterableDataset):
             )
 
             hrv_data = self.data["data"].sel(time=first_hour).to_numpy()
-
             for site in self._sites:
                 try:
                     # Get solar PV features and targets
                     site_features = pv_features.xs(site, level=1).to_numpy().squeeze(-1)
                     site_targets = pv_targets.xs(site, level=1).to_numpy().squeeze(-1)
                     assert site_features.shape == (12,) and site_targets.shape == (48,)
-
+                    
                     # Get a 128x128 HRV crop centred on the site over the previous hour
                     x, y = self._site_locations[self.dataset_type][site]
-                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 7]
+                    hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 0]
                     assert hrv_features.shape == (12, 128, 128)
-
+                    
                     # How might you adapt this for the non-HRV, weather and aerosol data?
                 except:
                     continue

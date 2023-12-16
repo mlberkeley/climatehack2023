@@ -6,7 +6,6 @@ import numpy as np
 
 months_num = 12
 class NonHrvDataset(Dataset):
-    """Face Landmarks dataset."""
 
     def __init__(self, data_path="/data/climatehack/official_dataset/nonhrv"):
         self.data_path = data_path
