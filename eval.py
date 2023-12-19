@@ -1,8 +1,4 @@
 from datetime import datetime, time, timedelta
-import json 
-import matplotlib.pyplot as plt 
-import numpy as np 
-import os 
 import torch 
 import torch.nn as nn 
 import torch.optim as optim 
@@ -32,16 +28,12 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.clip_grad_norm)
-
         size = int(pv_targets.size(0))
         tot_loss += float(loss) * size
         count += size
 
-        if i % 200 == 1:
-            print("eval iterations ", i)
-
-    tot_loss += loss
+        #if i % 200 == 1:
+            #print("eval iterations ", i)
 
     model.train()
 

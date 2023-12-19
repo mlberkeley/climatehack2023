@@ -4,6 +4,7 @@ from datetime import datetime, time, timedelta
 from submission.config import config
 from pathlib import Path
 import pandas as pd
+#import modin.pandas as pd
 import xarray as xr
 from ocf_blosc2 import Blosc2
 import json
@@ -17,6 +18,7 @@ class ChallengeDataset(IterableDataset):
         assert eval_day < 28, "eval day not < 28, lets not try that :)"
 
         self.dataset_type = dataset_type
+        self.eval = eval
 
         # Load pv data by concatenating all data in this folder
         if not eval:
@@ -57,22 +59,27 @@ class ChallengeDataset(IterableDataset):
         self._sites = sites if sites else list(site_locations[dataset_type].keys())
 
     def _get_image_times(self):
-        min_date = config.data.start_date
-        max_date = config.data.end_date
+        if not self.eval:
+            min_date = config.data.start_date
+            max_date = config.data.end_date
 
-        start_time = time(8)
-        end_time = time(17)
+            start_time = time(8)
+            end_time = time(17)
 
-        date = min_date
-        while date <= max_date:
-            current_time = datetime.combine(date, start_time)
-            while current_time.time() < end_time:
-                if current_time:
-                    yield current_time
+            date = min_date
+            while date <= max_date:
+                current_time = datetime.combine(date, start_time)
+                while current_time.time() < end_time:
+                    if current_time:
+                        yield current_time
 
-                current_time += timedelta(minutes=60)
+                    current_time += timedelta(minutes=60)
 
-            date += timedelta(days=1)
+                date += timedelta(days=1)
+        else:
+            for time in self.data["time"]:
+                yield datetime.fromtimestamp(time.item() / 1e9)
+
 
     def __iter__(self):
         pv = self.pv
@@ -114,12 +121,15 @@ class ChallengeDataset(IterableDataset):
                 x, y = self._site_locations[self.dataset_type][site]
 
                 hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
+                #hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, 6:9]
+
                 # if (hrv_features != hrv_features).any():
                 if np.isnan(hrv_features[:,0,0]).any() or np.isnan(hrv_features[:,-1,-1]).any():
                     print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
                     continue
 
                 if not (hrv_features.shape == (12, 128, 128)):
+                #if not (hrv_features.shape == (12, 128, 128, 3)):
                     # print('hrv shape mismatch')
                     continue
 
@@ -158,5 +168,6 @@ class ChallengeDataset(IterableDataset):
 #         break
 
 if __name__ == "__main__":
-    data = ChallengeDataset("nonhrv", 2020)
+    #data = ChallengeDataset("nonhrv", 2020)
     eval_data = ChallengeDataset("nonhrv", 2020, eval=True)
+    a = iter(eval_data)
