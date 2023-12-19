@@ -10,9 +10,11 @@ import json
 
 
 class ChallengeDataset(IterableDataset):
-    def __init__(self, dataset_type: str, year: int, sites=None, eval=False):
+    def __init__(self, dataset_type: str, year: int, sites=None, eval=False, eval_year=2021, eval_day=1):
         assert dataset_type in ("aerosols", "hrv", "nonhrv", "pv", "weather"), "ERROR LOADING DATA: dataset type provided is not correct [not of 'aerosols', 'hrv', 'nonhrv', 'pv' or 'weather']"
         assert year == 2020 or year == 2021, "ERROR LOADING DATA: year provided not correct [not 2020 or 2021]"
+        assert eval_year == 2020 or eval_year == 2021, "eval year not 2020 or 2021"
+        assert eval_day < 28, "eval day not < 28, lets not try that :)"
 
         self.dataset_type = dataset_type
 
@@ -24,11 +26,11 @@ class ChallengeDataset(IterableDataset):
             data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
 
         else:
-            def timeSlice(year, month, hours):
-                time = datetime(year, month, 1, 0, 0)
+            def timeSlice(year, month, day, hours):
+                time = datetime(year, month, day, 0, 0)
                 return slice(str(time), str(time + timedelta(hours=hours)))
 
-            months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{month}.parquet").drop("generation_wh", axis=1)[timeSlice(year, month, 24)] for month in range(1, 13)]
+            months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{month}.parquet").drop("generation_wh", axis=1)[timeSlice(year, month, eval_day, 24)] for month in range(1, 13)]
             pv = pd.concat(months)
 
             def xr_open(path):
@@ -36,7 +38,7 @@ class ChallengeDataset(IterableDataset):
                     engine="zarr",
                     consolidated=True,)
 
-            xr_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, 24)) for month in range(1, 13)]
+            xr_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, 24)) for month in range(1, 13)]
 
             data = xr.concat(xr_data, dim = "time")
 
