@@ -10,29 +10,31 @@ import json
 
 
 class ChallengeDataset(IterableDataset):
-    def __init__(self, dataset_type: str, year: int, sites=None):
+    def __init__(self, dataset_type: str, year: int, sites=None, eval=False):
         assert dataset_type in ("aerosols", "hrv", "nonhrv", "pv", "weather"), "ERROR LOADING DATA: dataset type provided is not correct [not of 'aerosols', 'hrv', 'nonhrv', 'pv' or 'weather']"
         assert year == 2020 or year == 2021, "ERROR LOADING DATA: year provided not correct [not 2020 or 2021]"
 
         self.dataset_type = dataset_type
 
         # Load pv data by concatenating all data in this folder
-        # Can modify as needed to load specific data
-        data_dir = Path(f"/data/climatehack/official_dataset/pv/{year}")
+        if not eval:
+            months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{i}.parquet").drop("generation_wh", axis=1) for i in range(1, 13)]
+            pv = pd.concat(months)
 
-        months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{i}.parquet").drop("generation_wh", axis=1) for i in range(1, 13)]
-        pv = pd.concat(months)
+            data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
 
-        #pv = pd.concat(
-            #pd.read_parquet(parquet_file).drop("generation_wh", axis=1)
-            #for parquet_file in [data_dir.glob(f'{i}.parquet') for i in range(1, 13)]
-        #)
+        else:
+            months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{i}.parquet").drop("generation_wh", axis=1)[0:1200] for i in range(1, 13)]
+            data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
+            def xr_open(path):
+                return xr.open_dataset(
+                        path,
+                        engine="zarr",
+                        consolidated=True,)                        )
 
-        # opens a single dataset
-        # hrv = xr.open_dataset("data/satellite-hrv/2020/7.zarr.zip", engine="zarr", chunks="auto")
+            xr_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip")[0:800] for month in range(1, months_num + 1)]
+            data = xr.concat(xr_data)
 
-        data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
-        # nonhrv = xr.open_mfdataset("/data/climatehack/official_dataset/nonhrv/2020/*.zarr.zip", engine="zarr", chunks="auto")
 
         # pre-computed indices corresponding to each solar PV site stored in indices.json
         with open("indices.json") as f:
@@ -42,6 +44,7 @@ class ChallengeDataset(IterableDataset):
                     for site, location in locations.items()
                 } for data_source, locations in json.load(f).items()
             }
+
         self.pv = pv
         self.data = data
         self._site_locations = site_locations
@@ -121,29 +124,33 @@ class ChallengeDataset(IterableDataset):
                 yield date_int, site, site_features, hrv_features, site_targets
 
 
+# if __name__ == "__main__":
+#     import cv2
+#     import imageio
+#     import matplotlib.pyplot as plt
+#     import numpy as np
+
+#     # load and visualize a singlular training example
+#     dataset = ChallengeDataset("nonhrv", 2020)
+#     for date, site, site_features, hrv_features, site_targets in dataset:
+#         print(site_features.shape, hrv_features.shape, site_targets.shape)
+#         print(hrv_features.min(), hrv_features.max())
+
+#         plt.plot(np.arange(0, 1, 1/12), site_features, color="red")
+#         plt.plot(np.arange(1, 5, 1/12), site_targets, color="blue")
+#         Path("vis").mkdir(exist_ok=True)
+#         plt.savefig("vis/power.jpg")
+
+#         hrv_features = (hrv_features * 255).astype(np.uint8)
+#         hrv_image = np.hstack(hrv_features)
+#         cv2.imwrite("vis/hrv.jpg", hrv_image)
+
+#         with imageio.get_writer("vis/vis.gif", mode="I") as writer:
+#             for idx, frame in enumerate(hrv_features):
+#                 writer.append_data(frame)
+
+#         break
+
 if __name__ == "__main__":
-    import cv2
-    import imageio
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    # load and visualize a singlular training example
-    dataset = ChallengeDataset("nonhrv", 2020)
-    for date, site, site_features, hrv_features, site_targets in dataset:
-        print(site_features.shape, hrv_features.shape, site_targets.shape)
-        print(hrv_features.min(), hrv_features.max())
-
-        plt.plot(np.arange(0, 1, 1/12), site_features, color="red")
-        plt.plot(np.arange(1, 5, 1/12), site_targets, color="blue")
-        Path("vis").mkdir(exist_ok=True)
-        plt.savefig("vis/power.jpg")
-
-        hrv_features = (hrv_features * 255).astype(np.uint8)
-        hrv_image = np.hstack(hrv_features)
-        cv2.imwrite("vis/hrv.jpg", hrv_image)
-
-        with imageio.get_writer("vis/vis.gif", mode="I") as writer:
-            for idx, frame in enumerate(hrv_features):
-                writer.append_data(frame)
-
-        break
+    data = ChallengeDataset("nonhrv", 2020)
+    eval_data = ChallengeDataset("nonhrv", 2020, eval=True)
