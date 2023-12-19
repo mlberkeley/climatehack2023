@@ -24,17 +24,20 @@ class ChallengeDataset(IterableDataset):
             data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
 
         else:
-            months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{i}.parquet").drop("generation_wh", axis=1)[0:1200] for i in range(1, 13)]
-            data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
+            def timeSlice(year, month, hours):
+                time = datetime(year, month, 1, 0, 0)
+                return slice(str(time), str(time + timedelta(hours=hours)))
+
+            months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{month}.parquet").drop("generation_wh", axis=1)[timeSlice(year, month, 24)] for month in range(1, 13)]
+
             def xr_open(path):
-                return xr.open_dataset(
-                        path,
-                        engine="zarr",
-                        consolidated=True,)                        )
+                return xr.open_dataset( path,
+                    engine="zarr",
+                    consolidated=True,)
 
-            xr_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip")[0:800] for month in range(1, months_num + 1)]
-            data = xr.concat(xr_data)
+            xr_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, 24)) for month in range(1, 13)]
 
+            data = xr.concat(xr_data, dim = "time")
 
         # pre-computed indices corresponding to each solar PV site stored in indices.json
         with open("indices.json") as f:
