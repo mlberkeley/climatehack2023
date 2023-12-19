@@ -43,3 +43,10 @@ def eval(dataset, model, criterion=nn.L1Loss()):
     model.train()
 
     return tot_loss / count
+
+if __name__ == "__main__":
+    model = Model()
+    model.load_state_dict(torch.load("./submission/val_model.pt"))
+    dataset = ChallengeDataset("nonhrv", 2020, eval=True)
+    print("starting eval")
+    print("eval: ", eval(dataset, model))

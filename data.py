@@ -29,6 +29,7 @@ class ChallengeDataset(IterableDataset):
                 return slice(str(time), str(time + timedelta(hours=hours)))
 
             months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{month}.parquet").drop("generation_wh", axis=1)[timeSlice(year, month, 24)] for month in range(1, 13)]
+            pv = pd.concat(months)
 
             def xr_open(path):
                 return xr.open_dataset( path,
