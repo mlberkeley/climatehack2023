@@ -37,7 +37,7 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
 
     model.train()
 
-    return (tot_loss / count).item()
+    return (tot_loss / count)
 
 if __name__ == "__main__":
     model = Model()

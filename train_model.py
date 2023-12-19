@@ -72,7 +72,7 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 3 == 2:
+        if i % 200 == 199:
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}")
             os.makedirs("submission", exist_ok=True)
             torch.save(model.state_dict(), "submission/model.pt")
@@ -81,8 +81,11 @@ for epoch in range(config.train.num_epochs):
                 pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
             )
 
-            print("validating")
-            validation_loss = eval(eval_loader, model)
+            if i % 400 == 199:
+                st = datetime.now()
+                print(f"validating: start {datetime.now()}")
+                validation_loss = eval(eval_loader, model)
+                print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
 
             wandb.log({
                 "train_loss": running_loss / count,

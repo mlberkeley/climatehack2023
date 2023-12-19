@@ -29,8 +29,8 @@ class ChallengeDataset(IterableDataset):
 
         else:
             def timeSlice(year, month, day, hours):
-                time = datetime(year, month, day, 0, 0)
-                return slice(str(time), str(time + timedelta(hours=hours)))
+                t = datetime(year, month, day, 0, 0)
+                return slice(str(t), str(t + timedelta(hours=hours)))
 
             months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{month}.parquet").drop("generation_wh", axis=1)[timeSlice(year, month, eval_day, eval_hours)] for month in range(1, 13)]
             pv = pd.concat(months)
@@ -77,8 +77,8 @@ class ChallengeDataset(IterableDataset):
 
                 date += timedelta(days=1)
         else:
-            for time in self.data["time"]:
-                yield datetime.fromtimestamp(time.item() / 1e9)
+            for t in self.data["time"][::40]:
+                yield datetime.fromtimestamp(t.item() / 1e9)
 
 
     def __iter__(self):
