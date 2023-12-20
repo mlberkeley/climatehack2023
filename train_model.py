@@ -75,7 +75,7 @@ for epoch in range(config.train.num_epochs):
         if i % 200 == 199:
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
             os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), "submission/model_random.pt")
+            torch.save(model.state_dict(), "submission/model.pt")
 
             sample_pv, sample_vis = util.visualize_example(
                 pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
@@ -98,6 +98,6 @@ for epoch in range(config.train.num_epochs):
 
 # Save your model
 os.makedirs("submission", exist_ok=True)
-torch.save(model.state_dict(), "submission/model_random.pt")
+torch.save(model.state_dict(), "submission/model.pt")
 
 wandb.finish()
