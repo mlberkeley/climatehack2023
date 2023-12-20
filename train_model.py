@@ -46,7 +46,7 @@ dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
 
 eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=24)
-eval_loader = DataLoader(eval_dataset, batch_size=256, pin_memory=True)
+eval_loader = DataLoader(eval_dataset, batch_size=128, pin_memory=True)
 
 for epoch in range(config.train.num_epochs):
     print(f"[{datetime.now()}]: Epoch {epoch + 1}")
@@ -81,7 +81,7 @@ for epoch in range(config.train.num_epochs):
                 pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
             )
 
-            if i % 400 == 199:
+            if i % 1000 == 199:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
