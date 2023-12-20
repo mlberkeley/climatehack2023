@@ -73,15 +73,15 @@ for epoch in range(config.train.num_epochs):
         count += size
 
         if i % 200 == 199:
-            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}")
+            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
             os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), "submission/model.pt")
+            torch.save(model.state_dict(), "submission/model_random.pt")
 
             sample_pv, sample_vis = util.visualize_example(
                 pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
             )
 
-            if i % 1000 == 199:
+            if i % 1600 == 199:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
@@ -98,6 +98,6 @@ for epoch in range(config.train.num_epochs):
 
 # Save your model
 os.makedirs("submission", exist_ok=True)
-torch.save(model.state_dict(), "submission/model.pt")
+torch.save(model.state_dict(), "submission/model_random.pt")
 
 wandb.finish()
