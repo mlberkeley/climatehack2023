@@ -15,7 +15,7 @@ from data import ChallengeDataset
 from submission.resnet import Model
 from submission.config import config
 from util import util
-
+from eval import eval
 
 wandb.init(
     entity="mlatberkeley",
@@ -35,6 +35,7 @@ if device == "cpu":
 summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)])
 data = "nonhrv"
 year = 2020
+validation_loss = 0
 
 # Actually do the training wow
 model = Model().to(device)
@@ -43,6 +44,9 @@ optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
 
 dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
+
+eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=24)
+eval_loader = DataLoader(eval_dataset, batch_size=256, pin_memory=True)
 
 for epoch in range(config.train.num_epochs):
     print(f"[{datetime.now()}]: Epoch {epoch + 1}")
@@ -77,8 +81,15 @@ for epoch in range(config.train.num_epochs):
                 pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
             )
 
+            if i % 400 == 199:
+                st = datetime.now()
+                print(f"validating: start {datetime.now()}")
+                validation_loss = eval(eval_loader, model)
+                print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
+
             wandb.log({
                 "train_loss": running_loss / count,
+                "validation_loss": validation_loss,
                 "sample_pv": sample_pv,
                 "sample_vis": sample_vis,
             })
