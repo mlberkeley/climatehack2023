@@ -143,7 +143,7 @@ class ChallengeDataset(IterableDataset):
                 x_nwp, y_nwp = self._site_locations["weather"][site]
 
                 hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
-                nwp_features = nwp_data[:, y_nwp - 64 : y_nwp + 64, x_nwp - 64 : x_nwp + 64]
+                nwp_features = nwp_data[:30, y_nwp - 64 : y_nwp + 64, x_nwp - 64 : x_nwp + 64]
                 #hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, :]
                 #hrv_features = hrv_data.reshape((hrv_data.shape[0], hrv_data.shape[1], hrv_data.shape[2]*hrv_data.shape[3]))
 
@@ -151,13 +151,16 @@ class ChallengeDataset(IterableDataset):
                 if np.isnan(hrv_features[:,0,0]).any() or np.isnan(hrv_features[:,-1,-1]).any():
                     print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
                     continue
+                if np.isnan(nwp_features[:,0,0]).any() or np.isnan(nwp_features[:,-1,-1]).any():
+                    print(f'WARNING: NaN in nwp_features for {time=}, {site=}')
+                    continue
 
                 if not (hrv_features.shape == (12, 128, 128)):
                 #if not (hrv_features.shape == (12, 128, 128, 3)):
                     # print('hrv shape mismatch')
                     continue
 
-                if not (nwp_features.shape == (190, 128, 128)):
+                if not (nwp_features.shape == (30, 128, 128)):
                         print(f"nwp shape error: {nwp_features.shape}, {time=}")
                         continue
 

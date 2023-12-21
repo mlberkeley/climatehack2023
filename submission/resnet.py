@@ -273,17 +273,17 @@ class Model(nn.Module):
         self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
 
         self.resnet_backbone_nwp = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
-        self.resnet_backbone_nwp.conv1 = nn.Conv2d(190, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.resnet_backbone_nwp.conv1 = nn.Conv2d(30, 64, kernel_size=7, stride=2, padding=3, bias=False)
 
         self.linear1 = nn.Linear(2 * 512 * BasicBlock.expansion + 12, 48)
         #self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
 
-    #def forward(self, pv, hrv, nwp):
-    def forward(self, pv, hrv):
+    def forward(self, pv, hrv, nwp):
+    #def forward(self, pv, hrv):
         feature = self.resnet_backbone(hrv)
         feature_nwp = self.resnet_backbone_nwp(nwp)
         x = torch.concat((feature, feature_nwp, pv), dim=-1)
-        x = torch.concat((feature, pv), dim=-1)
+        #x = torch.concat((feature, pv), dim=-1)
 
         x = torch.sigmoid(self.linear1(x))
 

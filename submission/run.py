@@ -17,7 +17,7 @@ class Evaluator(BaseEvaluator):
         """Sets up anything required for evaluation, e.g. loading a model."""
 
         self.model = Model().to(device)
-        self.model.load_state_dict(torch.load("model.pt", map_location=device))
+        self.model.load_state_dict(torch.load("model_random.pt", map_location=device))
         self.model.eval()
 
     def predict(self, features: h5py.File):
@@ -35,12 +35,15 @@ class Evaluator(BaseEvaluator):
 
         with torch.inference_mode():
             # Select the variables you wish to use here!
+            #for pv, hrv, weather in self.batch(features, variables=["pv", "nonhrv", "weather"], batch_size=32):
             for pv, hrv in self.batch(features, variables=["pv", "nonhrv"], batch_size=32):
                 # Produce solar PV predictions for this batch
                 hrv = hrv[...,8]
+                #nwp = weather[...]
                 a = self.model(
                     torch.from_numpy(pv).to(device),
                     torch.from_numpy(hrv).to(device),
+                    #torch.from_numpy(nwp).to(device),
                 )
                 yield a
 

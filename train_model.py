@@ -32,7 +32,7 @@ if device == "cpu":
         print("YOU ARE IN CPU MODE")
 
 
-summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)])
+summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 30, 128, 128)])
 data = "nonhrv"
 year = 2020
 validation_loss = 0
@@ -46,7 +46,7 @@ dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
 
 eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=24)
-eval_loader = DataLoader(eval_dataset, batch_size=128, pin_memory=True)
+eval_loader = DataLoader(eval_dataset, batch_size=config.train.batch_size, pin_memory=True)
 
 for epoch in range(config.train.num_epochs):
     print(f"[{datetime.now()}]: Epoch {epoch + 1}")
@@ -54,12 +54,13 @@ for epoch in range(config.train.num_epochs):
 
     running_loss = 0.0
     count = 0
-    for i, (time, site, pv_features, hrv_features, pv_targets) in enumerate(dataloader):
+    for i, (time, site, pv_features, hrv_features, pv_targets, nwp_features) in enumerate(dataloader):
         optimizer.zero_grad()
 
         predictions = model(
             pv_features.to(device, dtype=torch.float),
             hrv_features.to(device, dtype=torch.float),
+            nwp_features.to(device, dtype=torch.float),
         )
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
@@ -72,16 +73,16 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 200 == 199:
+        if i % 600 == 5:
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
             os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), "submission/model.pt")
+            torch.save(model.state_dict(), "submission/model_nwp.pt")
 
             sample_pv, sample_vis = util.visualize_example(
                 pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
             )
 
-            if i % 1600 == 199:
+            if i % 3000 == 5:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
@@ -98,6 +99,6 @@ for epoch in range(config.train.num_epochs):
 
 # Save your model
 os.makedirs("submission", exist_ok=True)
-torch.save(model.state_dict(), "submission/model.pt")
+torch.save(model.state_dict(), "submission/model_nwp.pt")
 
 wandb.finish()
