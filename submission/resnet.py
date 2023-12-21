@@ -3,6 +3,7 @@ import torch.nn as nn
 from functools import partial
 from typing import Any, Callable, List, Optional, Type, Union
 from torch import Tensor
+from submission.config import config
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
@@ -270,19 +271,20 @@ class Model(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
-        self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
+        #self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
 
         self.resnet_backbone_nwp = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
-        self.resnet_backbone_nwp.conv1 = nn.Conv2d(30, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.resnet_backbone_nwp.conv1 = nn.Conv2d(6 * len(config.train.weather_keys), 64, kernel_size=7, stride=2, padding=3, bias=False)
 
-        self.linear1 = nn.Linear(2 * 512 * BasicBlock.expansion + 12, 48)
+        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
         #self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
 
-    def forward(self, pv, hrv, nwp):
+    def forward(self, pv, nwp):
     #def forward(self, pv, hrv):
-        feature = self.resnet_backbone(hrv)
+        #feature = self.resnet_backbone(hrv)
         feature_nwp = self.resnet_backbone_nwp(nwp)
-        x = torch.concat((feature, feature_nwp, pv), dim=-1)
+        x = torch.concat((feature_nwp, pv), dim=-1)
+        #x = torch.concat((feature, feature_nwp, pv), dim=-1)
         #x = torch.concat((feature, pv), dim=-1)
 
         x = torch.sigmoid(self.linear1(x))

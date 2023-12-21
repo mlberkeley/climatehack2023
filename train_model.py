@@ -32,7 +32,7 @@ if device == "cpu":
         print("YOU ARE IN CPU MODE")
 
 
-summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 30, 128, 128)])
+summary(Model(), input_size=[(1, 12), (1, 6 * len(config.train.weather_keys), 128, 128)])
 data = "nonhrv"
 year = 2020
 validation_loss = 0
@@ -54,12 +54,12 @@ for epoch in range(config.train.num_epochs):
 
     running_loss = 0.0
     count = 0
-    for i, (time, site, pv_features, hrv_features, pv_targets, nwp_features) in enumerate(dataloader):
+    for i, (time, site, pv_features, pv_targets, nwp_features) in enumerate(dataloader):
         optimizer.zero_grad()
 
         predictions = model(
             pv_features.to(device, dtype=torch.float),
-            hrv_features.to(device, dtype=torch.float),
+            #hrv_features.to(device, dtype=torch.float),
             nwp_features.to(device, dtype=torch.float),
         )
 
@@ -73,16 +73,16 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 600 == 5:
+        if i % 100 == 20:
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
             os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), "submission/model_nwp.pt")
+            torch.save(model.state_dict(), "submission/model_weather_only.pt")
 
-            sample_pv, sample_vis = util.visualize_example(
-                pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
-            )
+            #sample_pv, sample_vis = util.visualize_example(
+                #pv_features[0], pv_targets[0], predictions[0], nwp_features[0]
+            #)
 
-            if i % 3000 == 5:
+            if i % 1600 == 20:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
@@ -91,14 +91,14 @@ for epoch in range(config.train.num_epochs):
             wandb.log({
                 "train_loss": running_loss / count,
                 "validation_loss": validation_loss,
-                "sample_pv": sample_pv,
-                "sample_vis": sample_vis,
+                #"sample_pv": sample_pv,
+                #"sample_vis": sample_vis,
             })
 
     print(f"Epoch {epoch + 1}: {running_loss / count}")
 
 # Save your model
 os.makedirs("submission", exist_ok=True)
-torch.save(model.state_dict(), "submission/model_nwp.pt")
+torch.save(model.state_dict(), "submission/model_weather_only.pt")
 
 wandb.finish()

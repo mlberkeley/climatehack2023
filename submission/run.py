@@ -36,14 +36,15 @@ class Evaluator(BaseEvaluator):
         with torch.inference_mode():
             # Select the variables you wish to use here!
             #for pv, hrv, weather in self.batch(features, variables=["pv", "nonhrv", "weather"], batch_size=32):
-            for pv, hrv in self.batch(features, variables=["pv", "nonhrv"], batch_size=32):
+            for data_tuple in self.batch(features, variables=["pv", "alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "pv", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow"], batch_size=32):
                 # Produce solar PV predictions for this batch
-                hrv = hrv[...,8]
-                #nwp = weather[...]
+                #hrv = hrv[...,8]
+                pv = data_tuple[0]
+                nwp = data_tuple[1:]
                 a = self.model(
                     torch.from_numpy(pv).to(device),
-                    torch.from_numpy(hrv).to(device),
-                    #torch.from_numpy(nwp).to(device),
+                    #torch.from_numpy(hrv).to(device),
+                    torch.from_numpy(nwp).to(device),
                 )
                 yield a
 
