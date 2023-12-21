@@ -91,7 +91,7 @@ class ChallengeDataset(IterableDataset):
         pv = self.pv
         nwp = self.nwp
 
-        rand_time_thresh, rand_site_thresh = 1, config.train.random_site_threshold
+        rand_time_thresh, rand_site_thresh = config.train.random_time_threshold, config.train.random_site_threshold
 
         for time in self._get_image_times():
             if (not self.eval) and np.random.uniform(0, 1) > rand_time_thresh:
@@ -118,13 +118,11 @@ class ChallengeDataset(IterableDataset):
             nwp_data = xr.concat([nwp_data[k] for k in config.train.weather_keys], dim="time").values
 
             if not (nwp_data.shape == (6 * len(config.train.weather_keys), 305, 289)):
-                    print(f"nwp pre site shape error: {nwp_data.shape}")
+                    #print(f"nwp pre site shape error: {nwp_data.shape}")
                     continue
 
             for site in self._sites:
                 if (not self.eval) and np.random.uniform(0, 1) > rand_site_thresh:
-                    continue
-                elif self.eval and np.random.uniform(0,1) > .2:
                     continue
 
                 # Get solar PV features and targets
@@ -157,8 +155,9 @@ class ChallengeDataset(IterableDataset):
                 #if np.isnan(hrv_features[:,0,0]).any() or np.isnan(hrv_features[:,-1,-1]).any():
                     #print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
                     #continue
-                if np.isnan(nwp_features[:,0,0]).any() or np.isnan(nwp_features[:,-1,-1]).any():
-                    print(f'WARNING: NaN in nwp_features for {time=}, {site=}')
+                #if np.isnan(nwp_features[:,0,0]).any() or np.isnan(nwp_features[:,-1,-1]).any():
+                if np.isnan(nwp_features).any():
+                    #print(f'WARNING: NaN in nwp_features for {time=}, {site=}')
                     continue
 
                 #if not (hrv_features.shape == (12, 128, 128)):

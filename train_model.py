@@ -73,8 +73,8 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 100 == 20:
-            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
+        if i % 100 == 3: 
+            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}") 
             os.makedirs("submission", exist_ok=True)
             torch.save(model.state_dict(), "submission/model_weather_only.pt")
 
@@ -82,7 +82,7 @@ for epoch in range(config.train.num_epochs):
                 #pv_features[0], pv_targets[0], predictions[0], nwp_features[0]
             #)
 
-            if i % 1600 == 20:
+            if i % 500 == 3:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
