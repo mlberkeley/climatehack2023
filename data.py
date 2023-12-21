@@ -27,6 +27,8 @@ class ChallengeDataset(IterableDataset):
 
             data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
 
+            nwp = xr.open_mfdataset(f"/data/climatehack/official_dataset/weather/{year}/*.zarr.zip", engine="zarr", chunks="auto")
+
         else:
             def timeSlice(year, month, day, hours):
                 t = datetime(year, month, day, 0, 0)
@@ -44,6 +46,9 @@ class ChallengeDataset(IterableDataset):
 
             data = xr.concat(xr_data, dim = "time")
 
+            nwp_data = [xr_open(f"/data/climatehack/official_dataset/weather/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, eval_hours)) for month in range(1, 13)]
+            nwp = xr.concat(nwp_data, dim = "time")
+
         # pre-computed indices corresponding to each solar PV site stored in indices.json
         with open("indices.json") as f:
             site_locations = {
@@ -55,6 +60,7 @@ class ChallengeDataset(IterableDataset):
 
         self.pv = pv
         self.data = data
+        self.nwp = nwp
         self._site_locations = site_locations
         self._sites = sites if sites else list(site_locations[dataset_type].keys())
 
@@ -74,7 +80,6 @@ class ChallengeDataset(IterableDataset):
                         yield current_time
 
                     current_time += timedelta(minutes=60)
-                    #current_time += timedelta(minutes=int(np.random.uniform(0, 10)) * 60)
 
                 date += timedelta(days=1)
         else:
@@ -84,6 +89,7 @@ class ChallengeDataset(IterableDataset):
 
     def __iter__(self):
         pv = self.pv
+        nwp = self.nwp
 
         rand_time_thresh, rand_site_thresh = 1, config.train.random_site_threshold
 
@@ -106,6 +112,11 @@ class ChallengeDataset(IterableDataset):
             )
 
             hrv_data = self.data["data"].sel(time=first_hour).to_numpy()
+
+            hrs_5 = slice(str(time), str(time + timedelta(hours=4, minutes=55)))
+            nwp_data = nwp.sel(time=hrs_5)
+            nwp_data = xr.concat([nwp_data[k] for k in nwp_data.data_vars], dim="time").values
+
             for site in self._sites:
                 if (not self.eval) and np.random.uniform(0, 1) > rand_site_thresh:
                     continue
@@ -129,8 +140,10 @@ class ChallengeDataset(IterableDataset):
                     continue
 
                 x, y = self._site_locations[self.dataset_type][site]
+                x_nwp, y_nwp = self._site_locations["weather"][site]
 
                 hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
+                nwp_features = nwp_data[:, y_nwp - 64 : y_nwp + 64, x_nwp - 64 : x_nwp + 64]
                 #hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, :]
                 #hrv_features = hrv_data.reshape((hrv_data.shape[0], hrv_data.shape[1], hrv_data.shape[2]*hrv_data.shape[3]))
 
@@ -144,11 +157,15 @@ class ChallengeDataset(IterableDataset):
                     # print('hrv shape mismatch')
                     continue
 
+                if not (nwp_features.shape == (190, 128, 128)):
+                        print(f"nwp shape error: {nwp_features.shape}, {time=}")
+                        continue
+
 
                 date_string = time.strftime("%Y%m%d%H%M%S")
                 date_int = int(date_string)
 
-                yield date_int, site, site_features, hrv_features, site_targets
+                yield date_int, site, site_features, hrv_features, site_targets, nwp_features
 
 
 # if __name__ == "__main__":

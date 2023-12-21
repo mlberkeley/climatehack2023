@@ -20,10 +20,12 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
     model.to(device)
 
 
-    for i, (time, site, pv_features, hrv_features, pv_targets) in enumerate(dataloader):
+    for i, (time, site, pv_features, hrv_features, pv_targets, nwp_features) in enumerate(dataloader):
+
         predictions = model(
             pv_features.to(device, dtype=torch.float),
             hrv_features.to(device, dtype=torch.float),
+            nwp_features.to(device, dtype=torch.float),
         )
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
