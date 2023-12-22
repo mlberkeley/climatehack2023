@@ -3,7 +3,7 @@ import torch.nn as nn
 from functools import partial
 from typing import Any, Callable, List, Optional, Type, Union
 from torch import Tensor
-from submission.config import config
+#from submission.config import config
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
@@ -281,25 +281,30 @@ class Model(nn.Module):
         self.backbones = [self.cloudbone, self.snowbone, self.tempbone, self.rainbone]
         #self.backbones = [_resnet(BasicBlock, [2, 2, 2, 2], None, True) for _ in config.train.weather_groups]
         for i, bone in enumerate(self.backbones):
-            bone.conv1 = nn.Conv2d(6 * config.train.weather_groups[i], 64, kernel_size=7, stride=2, padding=3, bias=False)
+            #bone.conv1 = nn.Conv2d(6 * config.train.weather_groups[i], 64, kernel_size=7, stride=2, padding=3, bias=False)
+            bone.conv1 = nn.Conv2d(6 * [4,2,2,1][i], 64, kernel_size=7, stride=2, padding=3, bias=False)
 
         #self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
         #self.linear1 = nn.Linear(len(self.backbones) * 512 * BasicBlock.expansion + 12, 48)
         self.linear1 = nn.Linear(len(self.backbones) * 512 * BasicBlock.expansion + 12, 512)
+        self.r = nn.LeakyReLU(0.1)
         self.linear2 = nn.Linear(512 + 12, 48)
 
     def forward(self, pv, nwp):
         last = 0
         features = []
 
-        for i, num in enumerate(config.train.weather_groups):
+        #for i, num in enumerate(config.train.weather_groups):
+        for i, num in enumerate([4,2,2,1]):
             features.append(self.backbones[i](nwp[:, last : last + 6 * num]))
             last = last + 6 * num
 
         feature_nwp = torch.cat(features, dim=-1)
 
         x = torch.concat((feature_nwp, pv), dim=-1)
-        x = nn.functional.relu(self.linear1(x))
+
+        #x = torch.sigmoid(self.linear1(x))
+        x = self.r(self.linear1(x))
 
         x = torch.concat((x, pv), dim=-1)
         x = torch.sigmoid(self.linear2(x))

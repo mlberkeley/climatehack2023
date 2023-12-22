@@ -44,7 +44,7 @@ optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
 dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
 
-eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=48)
+eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=96)
 eval_loader = DataLoader(eval_dataset, batch_size=config.train.batch_size, pin_memory=True)
 
 wandb.init(
@@ -78,16 +78,16 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 120 == 119: 
+        if i % 10 == 9: 
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}") 
             os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), "submission/model_weather_only.pt")
+            torch.save(model.state_dict(), "submission/model_deep_weather.pt")
 
             #sample_pv, sample_vis = util.visualize_example(
                 #pv_features[0], pv_targets[0], predictions[0], nwp_features[0]
             #)
 
-            if i % 360 == 119:
+            if i % 80 == 9 and epoch % 4 == 1:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
@@ -104,6 +104,6 @@ for epoch in range(config.train.num_epochs):
 
 # Save your model
 os.makedirs("submission", exist_ok=True)
-torch.save(model.state_dict(), "submission/model_weather_only.pt")
+torch.save(model.state_dict(), "submission/model_deep_weather.pt")
 
 wandb.finish()
