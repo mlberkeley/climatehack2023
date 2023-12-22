@@ -83,7 +83,7 @@ class ChallengeDataset(IterableDataset):
 
                 date += timedelta(days=1)
         else:
-            for t in self.nwp["time"][::20]:
+            for t in self.nwp["time"][::30]:
                 yield datetime.fromtimestamp(t.item() / 1e9)
 
 

@@ -17,11 +17,6 @@ from submission.config import config
 from util import util
 from eval import eval
 
-wandb.init(
-    entity="mlatberkeley",
-    project="climatehack23",
-    config=dict(config)
-)
 
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -32,7 +27,11 @@ if device == "cpu":
         print("YOU ARE IN CPU MODE")
 
 
-summary(Model(), input_size=[(1, 12), (1, 6 * len(config.train.weather_keys), 128, 128)])
+#t1, t2 = torch.randn((1,12)).to(device), torch.randn((1, 6 * len(config.train.weather_keys), 128, 128)).to(device)
+#m = Model().to(device)
+#print(m(t1, t2))
+summary(Model(), input_size=[(1, 12), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
+#summary(Model(), input_size=[(1, 12), (1, 6 * len(config.train.weather_keys), 128, 128)])
 data = "nonhrv"
 year = 2020
 validation_loss = 0
@@ -45,8 +44,14 @@ optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
 dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
 
-eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=24)
+eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=48)
 eval_loader = DataLoader(eval_dataset, batch_size=config.train.batch_size, pin_memory=True)
+
+wandb.init(
+    entity="mlatberkeley",
+    project="climatehack23",
+    config=dict(config)
+)
 
 for epoch in range(config.train.num_epochs):
     print(f"[{datetime.now()}]: Epoch {epoch + 1}")
@@ -73,7 +78,7 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 100 == 3: 
+        if i % 120 == 119: 
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}") 
             os.makedirs("submission", exist_ok=True)
             torch.save(model.state_dict(), "submission/model_weather_only.pt")
@@ -82,7 +87,7 @@ for epoch in range(config.train.num_epochs):
                 #pv_features[0], pv_targets[0], predictions[0], nwp_features[0]
             #)
 
-            if i % 500 == 3:
+            if i % 360 == 119:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
