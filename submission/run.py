@@ -10,7 +10,7 @@ from competition import BaseEvaluator
 from resnet import Model
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+vars = ["pv", "nonhrv"]
 
 class Evaluator(BaseEvaluator):
     def setup(self) -> None:
@@ -35,7 +35,7 @@ class Evaluator(BaseEvaluator):
 
         with torch.inference_mode():
             # Select the variables you wish to use here!
-            for pv, hrv in self.batch(features, variables=["pv", "nonhrv"], batch_size=32):
+            for pv, hrv in self.batch(features, variables=vars, batch_size=32):
                 # Produce solar PV predictions for this batch
                 hrv = hrv[...,8]
                 a = self.model(

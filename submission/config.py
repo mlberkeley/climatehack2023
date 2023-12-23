@@ -14,8 +14,6 @@ config.train.random_site_threshold = .02
 
 # DATA CONFIG
 config.data = edict()
-config.data.hrv_path = "/data/climatehack/official_dataset/hrv"
-config.data.nonhrv_path = "/data/climatehack/official_dataset/nonhrv"
 config.data.start_date = datetime(2020, 1, 1)
 config.data.end_date = datetime(2020, 10, 30)
 config.data.channel = 8

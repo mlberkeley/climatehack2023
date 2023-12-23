@@ -1,7 +1,4 @@
 from datetime import datetime
-import json
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 import torch
 import torch.nn as nn
@@ -9,6 +6,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchinfo import summary
 import wandb
+import argparse
 
 from data import ChallengeDataset
 # from submission.model import Model
@@ -17,10 +15,18 @@ from submission.config import config
 from util import util
 from eval import eval
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-n", "--run_name", type=str, default=None)
+parser.add_argument("-m", "--run_notes", type=str, default=None)
+
+args = parser.parse_args()
+
 wandb.init(
     entity="mlatberkeley",
     project="climatehack23",
-    config=dict(config)
+    config=dict(config),
+    name=args.run_name,
+    notes=args.run_notes
 )
 
 torch.autograd.set_detect_anomaly(True)
