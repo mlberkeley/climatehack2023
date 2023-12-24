@@ -30,7 +30,7 @@ if device == "cpu":
 #t1, t2 = torch.randn((1,12)).to(device), torch.randn((1, 6 * len(config.train.weather_keys), 128, 128)).to(device)
 #m = Model().to(device)
 #print(m(t1, t2))
-summary(Model(), input_size=[(1, 12), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
+summary(Model(), input_size=[(1, 12), (1, 11, 128, 128), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
 #summary(Model(), input_size=[(1, 12), (1, 6 * len(config.train.weather_keys), 128, 128)])
 data = "nonhrv"
 year = 2020
@@ -59,12 +59,12 @@ for epoch in range(config.train.num_epochs):
 
     running_loss = 0.0
     count = 0
-    for i, (time, site, pv_features, pv_targets, nwp_features) in enumerate(dataloader):
+    for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features) in enumerate(dataloader):
         optimizer.zero_grad()
 
         predictions = model(
             pv_features.to(device, dtype=torch.float),
-            #hrv_features.to(device, dtype=torch.float),
+            nonhrv_features.to(device, dtype=torch.float),
             nwp_features.to(device, dtype=torch.float),
         )
 
