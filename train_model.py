@@ -17,14 +17,11 @@ from submission.config import config
 from util import util
 from eval import eval
 
-wandb.init(
-    entity="mlatberkeley",
-    project="climatehack23",
-    config=dict(config)
-)
 
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+file_save_name = config.train.model_save_name
 
 if device == "cpu":
     print("====================")
@@ -32,10 +29,11 @@ if device == "cpu":
         print("YOU ARE IN CPU MODE")
 
 
-summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)])
+summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
+
 data = "nonhrv"
 year = 2020
-validation_loss = 0
+validation_loss, min_val_loss = 0, .15
 
 # Actually do the training wow
 model = Model().to(device)
@@ -45,8 +43,14 @@ optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
 dataset = ChallengeDataset(data, year)
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
 
-eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=24)
-eval_loader = DataLoader(eval_dataset, batch_size=128, pin_memory=True)
+eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=96)
+eval_loader = DataLoader(eval_dataset, batch_size=config.train.batch_size, pin_memory=True)
+
+wandb.init(
+    entity="mlatberkeley",
+    project="climatehack23",
+    config=dict(config)
+)
 
 for epoch in range(config.train.num_epochs):
     print(f"[{datetime.now()}]: Epoch {epoch + 1}")
@@ -54,12 +58,13 @@ for epoch in range(config.train.num_epochs):
 
     running_loss = 0.0
     count = 0
-    for i, (time, site, pv_features, hrv_features, pv_targets) in enumerate(dataloader):
+    for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features) in enumerate(dataloader):
         optimizer.zero_grad()
 
         predictions = model(
             pv_features.to(device, dtype=torch.float),
-            hrv_features.to(device, dtype=torch.float),
+            nonhrv_features.to(device, dtype=torch.float),
+            nwp_features.to(device, dtype=torch.float),
         )
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
@@ -72,20 +77,23 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 200 == 199:
-            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / (count + 1e-10)}, time: {time[0]}")
+        if i % 10 == 9: 
+            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}") 
             os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), "submission/model.pt")
+            torch.save(model.state_dict(), f"submission/{file_save_name}")
 
             sample_pv, sample_vis = util.visualize_example(
-                pv_features[0], pv_targets[0], predictions[0], hrv_features[0]
+                pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
             )
 
-            if i % 1600 == 199:
+            if i % 80 == 9 and epoch % 4 == 1:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
                 print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
+                if validation_loss < min_val_loss:
+                    torch.save(model.state_dict(), f"submission/best_{file_save_name}")
+                    min_val_loss = validation_loss
 
             wandb.log({
                 "train_loss": running_loss / (count + 1e-10),
@@ -98,6 +106,6 @@ for epoch in range(config.train.num_epochs):
 
 # Save your model
 os.makedirs("submission", exist_ok=True)
-torch.save(model.state_dict(), "submission/model.pt")
+torch.save(model.state_dict(), f"submission/{file_save_name}")
 
 wandb.finish()

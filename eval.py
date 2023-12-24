@@ -10,7 +10,6 @@ from submission.model import Model
 from submission.config import config
 from util import util
 
-
 def eval(dataloader, model, criterion=nn.L1Loss()):
     model.eval()
 
@@ -20,10 +19,12 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
     model.to(device)
 
 
-    for i, (time, site, pv_features, hrv_features, pv_targets) in enumerate(dataloader):
+    for i, data in enumerate(dataloader):
+        data = [dat.to(device, dtype=torch.float) for dat in data]
+        pv_targets = data[3]
+        data = [data[2], data[4], data[5]]
         predictions = model(
-            pv_features.to(device, dtype=torch.float),
-            hrv_features.to(device, dtype=torch.float),
+            *data
         )
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
@@ -31,9 +32,6 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
         size = int(pv_targets.size(0))
         tot_loss += float(loss) * size
         count += size
-
-        #if i % 200 == 1:
-            #print("eval iterations ", i)
 
     model.train()
 
