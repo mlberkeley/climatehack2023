@@ -1,3 +1,7 @@
+import sys
+
+sys.path.append("./")
+
 import numpy as np
 from torch.utils.data import IterableDataset
 from datetime import datetime, time, timedelta
@@ -88,8 +92,8 @@ class ChallengeDataset(IterableDataset):
         rand_time_thresh, rand_site_thresh = 1, config.train.random_site_threshold
 
         for time in self._get_image_times():
-            if (not self.eval) and np.random.uniform(0, 1) > rand_time_thresh:
-                continue
+            # if (not self.eval) and np.random.uniform(0, 1) > rand_time_thresh:
+            #     continue
 
             first_hour = slice(str(time), str(time + timedelta(minutes=55)))
 
@@ -107,8 +111,8 @@ class ChallengeDataset(IterableDataset):
 
             hrv_data = self.data["data"].sel(time=first_hour).to_numpy()
             for site in self._sites:
-                if (not self.eval) and np.random.uniform(0, 1) > rand_site_thresh:
-                    continue
+                # if (not self.eval) and np.random.uniform(0, 1) > rand_site_thresh:
+                #     continue
 
                 # Get solar PV features and targets
                 if not (site in pv_features.index.get_level_values('ss_id')):
@@ -134,8 +138,8 @@ class ChallengeDataset(IterableDataset):
                 #hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, :]
                 #hrv_features = hrv_data.reshape((hrv_data.shape[0], hrv_data.shape[1], hrv_data.shape[2]*hrv_data.shape[3]))
 
-                # if (hrv_features != hrv_features).any():
-                if np.isnan(hrv_features[:,0,0]).any() or np.isnan(hrv_features[:,-1,-1]).any():
+                # if np.isnan(hrv_features[:,0,0]).any() or np.isnan(hrv_features[:,-1,-1]).any():
+                if (hrv_features != hrv_features).any():
                     print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
                     continue
 
@@ -145,7 +149,7 @@ class ChallengeDataset(IterableDataset):
                     continue
 
 
-                date_string = time.strftime("%Y%m%d%H%M%S")
+                date_string = time.strftime("%y%m%d%H%M")
                 date_int = int(date_string)
 
                 yield date_int, site, site_features, hrv_features, site_targets

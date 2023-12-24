@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torchinfo import summary
 import wandb
 
-from data import ChallengeDataset
+from data.data import ChallengeDataset
 # from submission.model import Model
 from submission.resnet import Model
 from submission.config import config
@@ -73,7 +73,7 @@ for epoch in range(config.train.num_epochs):
         count += size
 
         if i % 200 == 199:
-            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
+            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / (count + 1e-10)}, time: {time[0]}")
             os.makedirs("submission", exist_ok=True)
             torch.save(model.state_dict(), "submission/model.pt")
 
@@ -88,13 +88,13 @@ for epoch in range(config.train.num_epochs):
                 print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
 
             wandb.log({
-                "train_loss": running_loss / count,
+                "train_loss": running_loss / (count + 1e-10),
                 "validation_loss": validation_loss,
                 "sample_pv": sample_pv,
                 "sample_vis": sample_vis,
             })
 
-    print(f"Epoch {epoch + 1}: {running_loss / count}")
+    print(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
 
 # Save your model
 os.makedirs("submission", exist_ok=True)

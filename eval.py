@@ -1,14 +1,14 @@
 from datetime import datetime, time, timedelta
-import torch 
-import torch.nn as nn 
-import torch.optim as optim 
-from torch.utils.data import DataLoader 
-from torchinfo import summary 
-from data import ChallengeDataset 
-from submission.model import Model 
-#from submission.resnet import Model 
-from submission.config import config 
-from util import util 
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torchinfo import summary
+from data.data import ChallengeDataset
+from submission.model import Model
+#from submission.resnet import Model
+from submission.config import config
+from util import util
 
 
 def eval(dataloader, model, criterion=nn.L1Loss()):
