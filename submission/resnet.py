@@ -271,44 +271,32 @@ class Model(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
-        #self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
-
-        #self.resnet_backbone_nwp = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
         self.cloudbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
         self.snowbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
         self.tempbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
         self.rainbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
         self.backbones = [self.cloudbone, self.snowbone, self.tempbone, self.rainbone]
-        #self.backbones = [_resnet(BasicBlock, [2, 2, 2, 2], None, True) for _ in config.train.weather_groups]
         for i, bone in enumerate(self.backbones):
-            #bone.conv1 = nn.Conv2d(6 * config.train.weather_groups[i], 64, kernel_size=7, stride=2, padding=3, bias=False)
             bone.conv1 = nn.Conv2d(6 * [4,2,2,1][i], 64, kernel_size=7, stride=2, padding=3, bias=False)
 
-        #self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
-        #self.linear1 = nn.Linear(len(self.backbones) * 512 * BasicBlock.expansion + 12, 48)
-        self.linear1 = nn.Linear(len(self.backbones) * 512 * BasicBlock.expansion + 12, 512)
+        self.linear1 = nn.Linear((len(self.backbones) + 1) * 512 * BasicBlock.expansion + 12, 512)
         self.r = nn.LeakyReLU(0.1)
-        self.linear2 = nn.Linear(512 + 12, 48)
+        self.linear2 = nn.Linear(512, 48)
 
-    def forward(self, pv, nwp):
+    def forward(self, pv, nonhrv, nwp):
         last = 0
         features = []
 
-        #for i, num in enumerate(config.train.weather_groups):
         for i, num in enumerate([4,2,2,1]):
             features.append(self.backbones[i](nwp[:, last : last + 6 * num]))
             last = last + 6 * num
 
         feature_nwp = torch.cat(features, dim=-1)
 
-        x = torch.concat((feature_nwp, pv), dim=-1)
+        x = torch.concat((nonhrv, feature_nwp, pv), dim=-1)
 
-        #x = torch.sigmoid(self.linear1(x))
         x = self.r(self.linear1(x))
-
-        x = torch.concat((x, pv), dim=-1)
         x = torch.sigmoid(self.linear2(x))
-
 
         return x
 

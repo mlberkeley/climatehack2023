@@ -25,7 +25,7 @@ class ChallengeDataset(IterableDataset):
             months = [pd.read_parquet(f"/data/climatehack/official_dataset/pv/{year}/{i}.parquet").drop("generation_wh", axis=1) for i in range(1, 13)]
             pv = pd.concat(months)
 
-            #data = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
+            nonhrv = xr.open_mfdataset(f"/data/climatehack/official_dataset/{dataset_type}/{year}/*.zarr.zip", engine="zarr", chunks="auto")
 
             nwp = xr.open_mfdataset(f"/data/climatehack/official_dataset/weather/{year}/*.zarr.zip", engine="zarr", chunks="auto")
 
@@ -42,9 +42,9 @@ class ChallengeDataset(IterableDataset):
                     engine="zarr",
                     consolidated=True,)
 
-            #xr_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, eval_hours)) for month in range(1, 13)]
+            nonhrv_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, eval_hours)) for month in range(1, 13)]
 
-            #data = xr.concat(xr_data, dim = "time")
+            nonhrv = xr.concat(xr_data, dim = "time")
 
             nwp_data = [xr_open(f"/data/climatehack/official_dataset/weather/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, eval_hours)) for month in range(1, 13)]
             nwp = xr.concat(nwp_data, dim = "time")
@@ -59,7 +59,7 @@ class ChallengeDataset(IterableDataset):
             }
 
         self.pv = pv
-        #self.data = data
+        self.nonhrv = nonhrv
         self.nwp = nwp
         self._site_locations = site_locations
         self._sites = sites if sites else list(site_locations[dataset_type].keys())
@@ -79,17 +79,18 @@ class ChallengeDataset(IterableDataset):
                     if current_time:
                         yield current_time
 
-                    current_time += timedelta(minutes=60)
+                    current_time += timedelta(minutes=config.train.minutes_resolution)
 
                 date += timedelta(days=1)
         else:
-            for t in self.nwp["time"][::30]:
+            for t in self.nwp["time"][::config.eval.eval_resolution // 5]:
                 yield datetime.fromtimestamp(t.item() / 1e9)
 
 
     def __iter__(self):
         pv = self.pv
         nwp = self.nwp
+        nonhrv = self.nonhrv
 
         rand_time_thresh, rand_site_thresh = config.train.random_time_threshold, config.train.random_site_threshold
 
@@ -111,7 +112,7 @@ class ChallengeDataset(IterableDataset):
                 # drop_level=False,
             )
 
-            #hrv_data = self.data["data"].sel(time=first_hour).to_numpy()
+            nonhrv_data = self.nonhrv["data"].sel(time=first_hour).to_numpy()
 
             hrs_6 = slice(str(time - timedelta(hours=1)), str(time + timedelta(hours=4, minutes=55)))
             nwp_data = nwp.sel(time=hrs_6)
@@ -140,40 +141,39 @@ class ChallengeDataset(IterableDataset):
 
                 # Get a 128x128 HRV crop centred on the site over the previous hour
                 if not (site in self._site_locations["weather"]):
-                    # print("site not avail")
+                    continue
+                if not (site in self._site_locations["nonhrv"]):
                     continue
 
-                #x, y = self._site_locations[self.dataset_type][site]
+                x, y = self._site_locations[self.dataset_type][site]
                 x_nwp, y_nwp = self._site_locations["weather"][site]
 
-                #hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
+                nonhrv_features = nonhrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
                 nwp_features = nwp_data[:, y_nwp - 64 : y_nwp + 64, x_nwp - 64 : x_nwp + 64]
                 #hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, :]
                 #hrv_features = hrv_data.reshape((hrv_data.shape[0], hrv_data.shape[1], hrv_data.shape[2]*hrv_data.shape[3]))
 
-                # if (hrv_features != hrv_features).any():
-                #if np.isnan(hrv_features[:,0,0]).any() or np.isnan(hrv_features[:,-1,-1]).any():
-                    #print(f'WARNING: NaN in hrv_features for {time=}, {site=}')
-                    #continue
-                #if np.isnan(nwp_features[:,0,0]).any() or np.isnan(nwp_features[:,-1,-1]).any():
+                if np.isnan(nonhrv).any():
+                    continue
                 if np.isnan(nwp_features).any():
                     #print(f'WARNING: NaN in nwp_features for {time=}, {site=}')
                     continue
 
-                #if not (hrv_features.shape == (12, 128, 128)):
+                if not (nonhrv_features.shape == (12, 128, 128)):
+                    continue
                 #if not (hrv_features.shape == (12, 128, 128, 3)):
                     # print('hrv shape mismatch')
                     #continue
 
                 if not (nwp_features.shape == (6 * len(config.train.weather_keys), 128, 128)):
-                        print(f"nwp shape error: {nwp_features.shape}, {time=}")
+                        #print(f"nwp shape error: {nwp_features.shape}, {time=}")
                         continue
 
 
                 date_string = time.strftime("%Y%m%d%H%M%S")
                 date_int = int(date_string)
 
-                yield date_int, site, site_features, site_targets, nwp_features
+                yield date_int, site, site_features, site_targets, nonhrv_features, nwp_features
 
 
 # if __name__ == "__main__":
