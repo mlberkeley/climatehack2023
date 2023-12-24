@@ -34,6 +34,8 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
         count += size
 
     model.train()
+    #del loss, data
+    #torch.cuda.empty_cache()
 
     return (tot_loss / count)
 

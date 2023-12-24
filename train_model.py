@@ -60,11 +60,12 @@ for epoch in range(config.train.num_epochs):
     count = 0
     for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features) in enumerate(dataloader):
         optimizer.zero_grad()
+        pv_features, nonhrv_features, nwp_features, pv_targets = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float)
 
         predictions = model(
-            pv_features.to(device, dtype=torch.float),
-            nonhrv_features.to(device, dtype=torch.float),
-            nwp_features.to(device, dtype=torch.float),
+            pv_features,
+            nonhrv_features,
+            nwp_features,
         )
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
@@ -77,7 +78,7 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 10 == 9: 
+        if i % 10 == 6: 
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}") 
             os.makedirs("submission", exist_ok=True)
             torch.save(model.state_dict(), f"submission/{file_save_name}")
@@ -86,8 +87,10 @@ for epoch in range(config.train.num_epochs):
                 pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
             )
 
-            if i % 80 == 9 and epoch % 5 == 1:
+            if i % 80 == 6 and epoch % 5 == 2:
                 st = datetime.now()
+                #del time, site, pv_features, pv_targets, nonhrv_features, nwp_features
+                #torch.cuda.empty_cache()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
                 print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
@@ -101,6 +104,7 @@ for epoch in range(config.train.num_epochs):
                 "sample_pv": sample_pv,
                 "sample_vis": sample_vis,
             })
+
 
     print(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
 
