@@ -271,6 +271,8 @@ class Model(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
+        self.nonhrvbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
+
         self.cloudbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
         self.snowbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
         self.tempbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
@@ -293,7 +295,8 @@ class Model(nn.Module):
 
         feature_nwp = torch.cat(features, dim=-1)
 
-        x = torch.concat((nonhrv, feature_nwp, pv), dim=-1)
+        feature_nonhrv = self.nonhrvbone(nonhrv)
+        x = torch.concat((feature_nonhrv, feature_nwp, pv), dim=-1)
 
         x = self.r(self.linear1(x))
         x = torch.sigmoid(self.linear2(x))

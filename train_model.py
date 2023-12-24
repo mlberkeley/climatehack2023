@@ -21,20 +21,19 @@ from eval import eval
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+file_save_name = config.train.model_save_name
+
 if device == "cpu":
     print("====================")
     for i in range(10):
         print("YOU ARE IN CPU MODE")
 
 
-#t1, t2 = torch.randn((1,12)).to(device), torch.randn((1, 6 * len(config.train.weather_keys), 128, 128)).to(device)
-#m = Model().to(device)
-#print(m(t1, t2))
-summary(Model(), input_size=[(1, 12), (1, 11, 128, 128), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
-#summary(Model(), input_size=[(1, 12), (1, 6 * len(config.train.weather_keys), 128, 128)])
+summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
+
 data = "nonhrv"
 year = 2020
-validation_loss = 0
+validation_loss, min_val_loss = 0, .15
 
 # Actually do the training wow
 model = Model().to(device)
@@ -81,29 +80,32 @@ for epoch in range(config.train.num_epochs):
         if i % 10 == 9: 
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}") 
             os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), "submission/model_deep_weather.pt")
+            torch.save(model.state_dict(), f"submission/{file_save_name}")
 
-            #sample_pv, sample_vis = util.visualize_example(
-                #pv_features[0], pv_targets[0], predictions[0], nwp_features[0]
-            #)
+            sample_pv, sample_vis = util.visualize_example(
+                pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
+            )
 
             if i % 80 == 9 and epoch % 4 == 1:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)
                 print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
+                if validation_loss < min_val_loss:
+                    torch.save(model.state_dict(), f"submission/best_{file_save_name}")
+                    min_val_loss = validation_loss
 
             wandb.log({
                 "train_loss": running_loss / count,
                 "validation_loss": validation_loss,
-                #"sample_pv": sample_pv,
-                #"sample_vis": sample_vis,
+                "sample_pv": sample_pv,
+                "sample_vis": sample_vis,
             })
 
     print(f"Epoch {epoch + 1}: {running_loss / count}")
 
 # Save your model
 os.makedirs("submission", exist_ok=True)
-torch.save(model.state_dict(), "submission/model_deep_weather.pt")
+torch.save(model.state_dict(), f"submission/{file_save_name}")
 
 wandb.finish()

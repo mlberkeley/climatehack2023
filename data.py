@@ -44,7 +44,7 @@ class ChallengeDataset(IterableDataset):
 
             nonhrv_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, eval_hours)) for month in range(1, 13)]
 
-            nonhrv = xr.concat(xr_data, dim = "time")
+            nonhrv = xr.concat(nonhrv_data, dim = "time")
 
             nwp_data = [xr_open(f"/data/climatehack/official_dataset/weather/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, eval_hours)) for month in range(1, 13)]
             nwp = xr.concat(nwp_data, dim = "time")
@@ -153,20 +153,20 @@ class ChallengeDataset(IterableDataset):
                 #hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, :]
                 #hrv_features = hrv_data.reshape((hrv_data.shape[0], hrv_data.shape[1], hrv_data.shape[2]*hrv_data.shape[3]))
 
-                if np.isnan(nonhrv).any():
+                if np.isnan(nonhrv_features).any():
                     continue
                 if np.isnan(nwp_features).any():
                     #print(f'WARNING: NaN in nwp_features for {time=}, {site=}')
                     continue
 
                 if not (nonhrv_features.shape == (12, 128, 128)):
+                    #print(f"shapemismatch got shape {nonhrv_features.shape}")
                     continue
                 #if not (hrv_features.shape == (12, 128, 128, 3)):
                     # print('hrv shape mismatch')
                     #continue
 
                 if not (nwp_features.shape == (6 * len(config.train.weather_keys), 128, 128)):
-                        #print(f"nwp shape error: {nwp_features.shape}, {time=}")
                         continue
 
 
@@ -175,33 +175,6 @@ class ChallengeDataset(IterableDataset):
 
                 yield date_int, site, site_features, site_targets, nonhrv_features, nwp_features
 
-
-# if __name__ == "__main__":
-#     import cv2
-#     import imageio
-#     import matplotlib.pyplot as plt
-#     import numpy as np
-
-#     # load and visualize a singlular training example
-#     dataset = ChallengeDataset("nonhrv", 2020)
-#     for date, site, site_features, hrv_features, site_targets in dataset:
-#         print(site_features.shape, hrv_features.shape, site_targets.shape)
-#         print(hrv_features.min(), hrv_features.max())
-
-#         plt.plot(np.arange(0, 1, 1/12), site_features, color="red")
-#         plt.plot(np.arange(1, 5, 1/12), site_targets, color="blue")
-#         Path("vis").mkdir(exist_ok=True)
-#         plt.savefig("vis/power.jpg")
-
-#         hrv_features = (hrv_features * 255).astype(np.uint8)
-#         hrv_image = np.hstack(hrv_features)
-#         cv2.imwrite("vis/hrv.jpg", hrv_image)
-
-#         with imageio.get_writer("vis/vis.gif", mode="I") as writer:
-#             for idx, frame in enumerate(hrv_features):
-#                 writer.append_data(frame)
-
-#         break
 
 if __name__ == "__main__":
     #data = ChallengeDataset("nonhrv", 2020)
