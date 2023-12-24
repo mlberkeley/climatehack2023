@@ -86,7 +86,7 @@ for epoch in range(config.train.num_epochs):
                 pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
             )
 
-            if i % 80 == 9 and epoch % 4 == 1:
+            if i % 80 == 9 and epoch % 5 == 1:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_loader, model)

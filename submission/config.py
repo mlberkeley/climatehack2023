@@ -5,7 +5,7 @@ config = edict()
 
 # TRAIN CONFIG
 config.train = edict()
-config.train.model_save_name = "model.pt"
+config.train.model_save_name = "model_multi.pt"
 config.train.batch_size = 64
 config.train.num_epochs = 1000
 config.train.num_workers = 8

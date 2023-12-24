@@ -99,8 +99,8 @@ class ChallengeDataset(IterableDataset):
         rand_time_thresh, rand_site_thresh = config.train.random_time_threshold, config.train.random_site_threshold
 
         for time in self._get_image_times():
-            # if (not self.eval) and np.random.uniform(0, 1) > rand_time_thresh:
-            #     continue
+            if (not self.eval) and np.random.uniform(0, 1) > rand_time_thresh:
+                 continue
 
             first_hour = slice(str(time), str(time + timedelta(minutes=55)))
 
@@ -127,8 +127,8 @@ class ChallengeDataset(IterableDataset):
                     continue
 
             for site in self._sites:
-                # if (not self.eval) and np.random.uniform(0, 1) > rand_site_thresh:
-                #     continue
+                if (not self.eval) and np.random.uniform(0, 1) > rand_site_thresh:
+                    continue
 
                 # Get solar PV features and targets
                 if not (site in pv_features.index.get_level_values('ss_id')):
