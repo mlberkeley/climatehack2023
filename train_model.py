@@ -11,11 +11,13 @@ from torchinfo import summary
 import wandb
 
 from data.data import ChallengeDataset
+from data.random_data import ClimatehackDatasetConfig, ClimatehackDataset
 # from submission.model import Model
 from submission.resnet import Model
 from submission.config import config
 from util import util
 from eval import eval
+from pathlib import Path
 
 
 torch.autograd.set_detect_anomaly(True)
@@ -40,8 +42,16 @@ model = Model().to(device)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
 
-dataset = ChallengeDataset(data, year)
-dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
+ds_conf = ClimatehackDatasetConfig(
+    start_date=config.data.start_date,
+    end_date=config.data.end_date,
+    root_dir=Path("/data/climatehack/official_dataset"),
+    features=None,
+)
+# dataset = ChallengeDataset(data, year)
+# dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
+dataset = ClimatehackDataset(ds_conf)
+dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True, num_workers=16, shuffle=True, prefetch_factor=2)
 
 eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=96)
 eval_loader = DataLoader(eval_dataset, batch_size=config.train.batch_size, pin_memory=True)
@@ -49,7 +59,8 @@ eval_loader = DataLoader(eval_dataset, batch_size=config.train.batch_size, pin_m
 wandb.init(
     entity="mlatberkeley",
     project="climatehack23",
-    config=dict(config)
+    config=dict(config),
+    mode="disabled",
 )
 
 for epoch in range(config.train.num_epochs):
@@ -58,6 +69,7 @@ for epoch in range(config.train.num_epochs):
 
     running_loss = 0.0
     count = 0
+    last_time = datetime.now()
     for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features) in enumerate(dataloader):
         optimizer.zero_grad()
         pv_features, nonhrv_features, nwp_features, pv_targets = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float)
@@ -78,32 +90,34 @@ for epoch in range(config.train.num_epochs):
         running_loss += float(loss) * size
         count += size
 
-        if i % 10 == 6: 
-            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}") 
-            os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), f"submission/{file_save_name}")
+        #if i % 10 == 6:
+        #    print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
+        #    os.makedirs("submission", exist_ok=True)
+        #    torch.save(model.state_dict(), f"submission/{file_save_name}")
 
-            sample_pv, sample_vis = util.visualize_example(
-                pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
-            )
+        #    sample_pv, sample_vis = util.visualize_example(
+        #        pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
+        #    )
 
-            if i % 80 == 6 and epoch % 5 == 2:
-                st = datetime.now()
-                #del time, site, pv_features, pv_targets, nonhrv_features, nwp_features
-                #torch.cuda.empty_cache()
-                print(f"validating: start {datetime.now()}")
-                validation_loss = eval(eval_loader, model)
-                print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
-                if validation_loss < min_val_loss:
-                    torch.save(model.state_dict(), f"submission/best_{file_save_name}")
-                    min_val_loss = validation_loss
+        #    if i % 80 == 6 and epoch % 5 == 2:
+        #        st = datetime.now()
+        #        #del time, site, pv_features, pv_targets, nonhrv_features, nwp_features
+        #        #torch.cuda.empty_cache()
+        #        print(f"validating: start {datetime.now()}")
+        #        validation_loss = eval(eval_loader, model)
+        #        print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
+        #        if validation_loss < min_val_loss:
+        #            torch.save(model.state_dict(), f"submission/best_{file_save_name}")
+        #            min_val_loss = validation_loss
 
-            wandb.log({
-                "train_loss": running_loss / (count + 1e-10),
-                "validation_loss": validation_loss,
-                "sample_pv": sample_pv,
-                "sample_vis": sample_vis,
-            })
+        #    wandb.log({
+        #        "train_loss": running_loss / (count + 1e-10),
+        #        "validation_loss": validation_loss,
+        #        "sample_pv": sample_pv,
+        #        "sample_vis": sample_vis,
+        #    })
+        print(f'iter time: {datetime.now() - last_time}')
+        last_time = datetime.now()
 
 
     print(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
