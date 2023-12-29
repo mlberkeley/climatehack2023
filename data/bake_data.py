@@ -18,6 +18,8 @@ BAKE_END = datetime(2021, 12, 31)
 
 WEATHER_KEYS = ["alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow", "ww", "z0"]
 
+WEATHER_RANGES = {'alb_rad': (0, 100), 'aswdifd_s': (0.0, 544.5), 'aswdir_s': (0.0, 864.0), 'cape_con': (0.0, 2244.0), 'clch': (0.0, 100.0), 'clcl': (0.0, 100.0), 'clcm': (0.0, 100.0), 'clct': (0.0, 100.0), 'h_snow': (0.0, 4.3086), 'omega_1000': (-10.32, 13.172), 'omega_700': (-40.28, 26.891), 'omega_850': (-33.34, 22.797), 'omega_950': (-16.77, 14.117), 'pmsl': (93928.17, 105314.26), 'relhum_2m': (0, 100), 'runoff_g': (-0.2157, 153.75), 'runoff_s': (-1.979e-05, 123.94), 't_2m': (248.9, 313.75), 't_500': (228.4, 269.75), 't_850': (250.5, 299.75), 't_950': (254.1, 309.5), 't_g': (235.8, 322.5), 'td_2m': (233.5, 297.75), 'tot_prec': (0.0, 150.75), 'u_10m': (-27.22, 29.094), 'u_50': (-28.66, 73.375), 'u_500': (-49.12, 79.5), 'u_850': (-46.31, 47.188), 'u_950': (-37.47, 39.812), 'v_10m': (-26.95, 28.469), 'v_50': (-56.91, 51.812), 'v_500': (-59.09, 60.844), 'v_850': (-37.09, 48.625), 'v_950': (-39.81, 42.469), 'vmax_10m': (0.05722, 65.062), 'w_snow': (0.0, 1422.0), 'ww': (0, 100), 'z0': (2.95e-05, 1.0)}
+
 class BakerDataset(IterableDataset):
 
     def __init__(self):
@@ -140,6 +142,12 @@ def main(skip_bake_index=False):
     dataset = BakerDataset()
 
     # iterate over dates and cosntruct bake index
+    bake_index_dt = np.dtype([
+        ('time', np.int32),
+        ('site', np.int32),
+        ('nonhrv_flags', np.bool_, (11,)),
+        ('weather_flags', np.bool_, (38,)),
+    ], align=True)
     start = datetime.now()
     if not skip_bake_index:
         bake_index = []
@@ -148,13 +156,7 @@ def main(skip_bake_index=False):
                 print(i)
             bake_index.append(entry)
 
-        dt = np.dtype([
-            ('time', np.int32),
-            ('site', np.int32),
-            ('nonhrv_flags', np.bool_, (11,)),
-            ('weather_flags', np.bool_, (38,)),
-        ], align=True)
-        bake_index = np.array(bake_index, dtype=dt)
+        bake_index = np.array(bake_index, dtype=bake_index_dt)
         np.save("bake_index.npy", bake_index)
 
         end = datetime.now()
@@ -162,8 +164,16 @@ def main(skip_bake_index=False):
     else:
         bake_index = np.load("bake_index.npy")
 
+    h5file = h5py.File("data.h5", "w")
+
     # based on bake index, save all pv data to a single hdf5 file
-    # TODO
+    ds = h5file.create_dataset(
+            'bake_index',
+            shape=(len(bake_index),),
+            dtype=bake_index_dt,
+            chunks=(min(10000, len(bake_index)),),
+    )
+    ds[:] = bake_index
 
     # based on bake index, save all nonhrv data to a single hdf5 file
     # get timestamps that we need
@@ -172,19 +182,21 @@ def main(skip_bake_index=False):
     times = set(bake_index['time'][bake_index['nonhrv_flags'].any(axis=1)])
     times = sorted(list(times))
 
-    h5file = h5py.File("data.h5", "w")
     ds = h5file.create_dataset(
             "nonhrv",
-            shape=(len(times), 12, 293, 333, 11),
-            dtype=np.float16,
-            chunks=(1, 12, 64, 64, 1),
+            shape=(11, len(times), 12, 293, 333),
+            dtype=np.uint8,
+            chunks=(1, 16, 12, 293, 333),
     )
     ds.attrs['times'] = np.array(times, dtype=np.uint32)
 
     print('Writing nonhrv data to hdf5 file')
     for i, timeint in enumerate(tqdm(times)):
         time = datetime.fromtimestamp(timeint)
-        ds[i] = dataset.nonhrv['data'].sel(time=slice(time, time + timedelta(minutes=55))).to_numpy()
+        d = dataset.nonhrv['data'].sel(time=slice(time, time + timedelta(minutes=55))).to_numpy()
+        # t, y, x, c -> c, t, y, x
+        ds[:, i] = (d * 255).astype(np.uint8).transpose(3, 0, 1, 2)
+        # ds[i] = d
 
     # based on bake index, save all weather data to a single hdf5 file
 
@@ -198,9 +210,9 @@ def main(skip_bake_index=False):
 
     ds = h5file.create_dataset(
             "weather",
-            shape=(len(times), 305, 289, 38),
-            dtype=np.float32,
-            chunks=(1, 305, 289, 38),
+            shape=(38, len(times), 305, 289),
+            dtype=np.uint8,
+            chunks=(1, 32, 305, 289),
     )
     ds.attrs['times'] = np.array(times, dtype=np.uint32)
 
@@ -208,11 +220,17 @@ def main(skip_bake_index=False):
     for i, timeint in enumerate(tqdm(times)):
         time = datetime.fromtimestamp(timeint)
         nwp_data = dataset.weather.sel(time=time)
-        nwp_data = xr.concat([nwp_data[k] for k in WEATHER_KEYS], dim="channel").values
-        ds[i] = nwp_data.astype(np.float16).transpose(1, 2, 0)
+        nwp_data = xr.concat([
+                (nwp_data[k] + WEATHER_RANGES[k][0]) / (WEATHER_RANGES[k][1] - WEATHER_RANGES[k][0])
+                for k in WEATHER_KEYS
+            ], dim="channel").values
+        # c, y, x -> c, y, x
+        ds[:, i] = (nwp_data * 255).astype(np.uint8)
+        # ds[i] = nwp_data.astype(np.float16).transpose(1, 2, 0)
 
     h5file.close()
 
 
 if __name__ == "__main__":
-    main(skip_bake_index=False)
+    # todo: add a dtype option
+    main(skip_bake_index=True)

@@ -30,6 +30,7 @@ class ClimatehackDataset(Dataset):
 
         self.bake_index = np.load("bake_index.npy")
         self.bake_index = self.bake_index[
+            (self.bake_index['time'] < 1609459200) &
             self.bake_index['nonhrv_flags'].all(axis=1) &
             self.bake_index['weather_flags'].all(axis=1)
         ]
@@ -40,18 +41,32 @@ class ClimatehackDataset(Dataset):
                 for m in range(1, 13)
         ])
 
-        self.data = h5py.File('data.h5.bac', 'r')
+        # self.data = h5py.File('/data/climatehack/nonhrv_weather.h5', 'r')
+        self.data = h5py.File('data.uint8.2.h5', 'r')
 
-        self.nonhrv = self.data['nonhrv']
-        self.nonhrv_time_map = {t: i for i, t in enumerate(self.nonhrv.attrs['times'])}
-        self.nonhrv = self.nonhrv[:]
+        # 1609459200, 2986, 4642
 
-        self.weather = self.data['weather']
-        self.weather_time_map = {t: i for i, t in enumerate(self.weather.attrs['times'])}
-        self.weather = self.weather[:]
+        self.nonhrv_src = self.data['nonhrv']
+        self.nonhrv_time_map = {t: i for i, t in enumerate(self.nonhrv_src.attrs['times'])}
+        # todo only load filtered stuffs
+        self.nonhrv = np.empty(
+                (2, 2986, *self.nonhrv_src.shape[2:]),
+                dtype=np.uint8
+        )
+        # self.nonhrv = self.nonhrv[[7,8], :2986]
+        for i, a in enumerate((7, 8)):
+            self.nonhrv_src.read_direct(self.nonhrv[i], np.s_[i, :2986, ...])
+        # TODO convert that to a for loop as well lmao
 
-        print(np.nanmin(self.nonhrv, axis=(0, 1, 2, 3)), np.nanmax(self.nonhrv, axis=(0, 1, 2, 3)))
-        print(np.nanmin(self.weather, axis=(0, 1, 2)), np.nanmax(self.weather, axis=(0, 1, 2)))
+        self.weather_src = self.data['weather']
+        self.weather_time_map = {t: i for i, t in enumerate(self.weather_src.attrs['times'])}
+        # self.weather = self.weather[weather_inds, :4642]
+        self.weather = np.empty(
+                (len(weather_inds), 4642, *self.weather_src.shape[2:]),
+                dtype=np.uint8
+        )
+        for i, ind in enumerate(weather_inds):
+            self.weather_src.read_direct(self.weather[i], np.s_[ind, :4642, ...])
 
         with open("indices.json") as f:
             self.site_locations = {
@@ -90,11 +105,12 @@ class ClimatehackDataset(Dataset):
         x, y = self.site_locations['nonhrv'][site]
         nonhrv_ind = self.nonhrv_time_map[timestamp]
         nonhrv_features = self.nonhrv[
+                1,
                 nonhrv_ind,
                 :,
                 y - 64:y + 64,
                 x - 64:x + 64,
-                8
+                # 8
         ]
         # nonhrv.shape = (num_hours, hour, y, x, channels) = (*, 12, 293, 333, 11)
         # nonhrv_features.shape = (12, 128, 128)
@@ -104,10 +120,11 @@ class ClimatehackDataset(Dataset):
         x, y = self.site_locations['weather'][site]
         weather_ind = self.weather_time_map[timestamp]
         weather_features = self.weather[
+                :,
                 weather_ind - 1:weather_ind + 5,
                 y - 64:y + 64,
                 x - 64:x + 64,
-                weather_inds
+                # weather_inds
         ]
         # weather.shape = (num_hours, y, x, channels) = (*, 305, 289, 38)
         # weather_features.shape = (6, 128, 128, ?)

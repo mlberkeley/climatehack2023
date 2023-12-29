@@ -50,7 +50,10 @@ ds_conf = ClimatehackDatasetConfig(
 )
 # dataset = ChallengeDataset(data, year)
 # dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True)
+start = datetime.now()
 dataset = ClimatehackDataset(ds_conf)
+print(f'Dataset length: {len(dataset):,}')
+print(f'init time: {datetime.now() - start}')
 dataloader = DataLoader(dataset, batch_size=config.train.batch_size, pin_memory=True, num_workers=16, shuffle=True, prefetch_factor=2)
 
 eval_dataset = ChallengeDataset(data, 2021, eval=True, eval_year=2021, eval_day=15, eval_hours=96)
@@ -116,8 +119,9 @@ for epoch in range(config.train.num_epochs):
         #        "sample_pv": sample_pv,
         #        "sample_vis": sample_vis,
         #    })
-        print(f'iter time: {datetime.now() - last_time}')
-        last_time = datetime.now()
+        if i % 25 == 0:
+            print(f'iter time: {(datetime.now() - last_time) / 25}')
+            last_time = datetime.now()
 
 
     print(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
