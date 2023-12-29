@@ -7,7 +7,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 import h5py
 import torch
 from competition import BaseEvaluator
-from resnet import Model
+from resnet import ResNet18 as Model
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -17,7 +17,7 @@ class Evaluator(BaseEvaluator):
         """Sets up anything required for evaluation, e.g. loading a model."""
 
         self.model = Model().to(device)
-        self.model.load_state_dict(torch.load("bigger_batch.pt", map_location=device))
+        self.model.load_state_dict(torch.load("best_bigger_batch.pt", map_location=device))
         self.model.eval()
 
     def predict(self, features: h5py.File):
@@ -47,7 +47,7 @@ class Evaluator(BaseEvaluator):
                 a = self.model(
                     torch.from_numpy(pv).to(device),
                     torch.from_numpy(nonhrv).to(device),
-                    nwp.to(device),
+                    # nwp.to(device),
                 )
                 yield a
 

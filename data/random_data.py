@@ -144,6 +144,7 @@ class ClimatehackDataset(Dataset):
         # nonhrv.shape = (num_hours, hour, y, x, channels) = (*, 12, 293, 333, 11)
         # nonhrv_features.shape = (12, 128, 128)
         # nonhrv_features = np.zeros((12, 128, 128))
+        nonhrv_features = nonhrv_features.astype(np.float32) / 255
 
         # weather
         x, y = self.site_locations['weather'][site]
@@ -159,5 +160,6 @@ class ClimatehackDataset(Dataset):
         # weather_features.shape = (6, 128, 128, ?)
         weather_features = weather_features.transpose((0, 3, 1, 2))
         weather_features = weather_features.reshape((6 * len(weather_keys), 128, 128))
+        weather_features = weather_features.astype(np.float32) / 255
 
         return timestamp, site, pv_features, pv_targets, nonhrv_features, weather_features
