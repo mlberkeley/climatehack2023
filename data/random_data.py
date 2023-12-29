@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 import json
 import numpy as np
@@ -10,64 +9,68 @@ import pickle
 import h5py
 
 
+# TODO possibly get rid of this shit
 WEATHER_KEYS = ["alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow", "ww", "z0"]
 weather_keys = ["clch", "clcl", "clcm", "clct", "h_snow", "w_snow", "t_g", "t_2m", "tot_prec"]
 weather_inds = sorted([WEATHER_KEYS.index(key) for key in weather_keys])
 
 
-@dataclass
-class ClimatehackDatasetConfig:
-    start_date: datetime
-    end_date: datetime
-    root_dir: Path
-    features: list[str] # TODO: make this an enum
-
-
 class ClimatehackDataset(Dataset):
 
-    def __init__(self, config: ClimatehackDatasetConfig):
-        self.config = config
+    def __init__(self,
+        start_date: datetime,
+        end_date: datetime,
+        root_dir: Path,
+        features: list[str], # TODO: make this an enum
+        subset_size: int = 0,
+    ):
+        self.start_date = start_date
+        self.end_date = end_date
+        self.root_dir = root_dir
+        self.features = features
 
-        self.bake_index = np.load("bake_index.npy")
-        self.bake_index = self.bake_index[
-            (self.bake_index['time'] < 1609459200) &
-            self.bake_index['nonhrv_flags'].all(axis=1) &
-            self.bake_index['weather_flags'].all(axis=1)
-        ]
+        datafile = h5py.File(f'{root_dir}/baked_data.h5', 'r')
 
+        start_time = datetime.now()
+        self.bake_index = np.empty_like(datafile['bake_index'])
+        datafile['bake_index'].read_direct(self.bake_index)
+        self._filter_bake_index()
+        if (subset_size > 0 and len(self.bake_index) > subset_size):
+            rng = np.random.default_rng(21)
+            rng.shuffle(self.bake_index)
+            self.bake_index = self.bake_index[:subset_size]
+        print(f"Loaded bake index in {datetime.now() - start_time}")
+
+        # TODO replace with h5py... soon..
+        start_time = datetime.now()
         self.pv = pd.concat([
-                pd.read_parquet(f"{self.config.root_dir}/pv/{y}/{m}.parquet").drop("generation_wh", axis=1)
+                pd.read_parquet(f"{root_dir}/official_dataset/pv/{y}/{m}.parquet").drop("generation_wh", axis=1)
                 for y in (2020, 2021)
                 for m in range(1, 13)
         ])
+        print(f"Loaded pv in {datetime.now() - start_time}")
 
-        # self.data = h5py.File('/data/climatehack/nonhrv_weather.h5', 'r')
-        self.data = h5py.File('data.uint8.2.h5', 'r')
-
-        # 1609459200, 2986, 4642
-
-        self.nonhrv_src = self.data['nonhrv']
-        self.nonhrv_time_map = {t: i for i, t in enumerate(self.nonhrv_src.attrs['times'])}
-        # todo only load filtered stuffs
-        self.nonhrv = np.empty(
-                (2, 2986, *self.nonhrv_src.shape[2:]),
-                dtype=np.uint8
+        start_time = datetime.now()
+        nonhrv_src = datafile['nonhrv']
+        self.nonhrv, self.nonhrv_time_map = self._load_data(
+                nonhrv_src,
+                [7, 8],
+                start_date,
+                end_date,
         )
-        # self.nonhrv = self.nonhrv[[7,8], :2986]
-        for i, a in enumerate((7, 8)):
-            self.nonhrv_src.read_direct(self.nonhrv[i], np.s_[i, :2986, ...])
-        # TODO convert that to a for loop as well lmao
+        print(f"Loaded nonhrv in {datetime.now() - start_time}")
 
-        self.weather_src = self.data['weather']
-        self.weather_time_map = {t: i for i, t in enumerate(self.weather_src.attrs['times'])}
-        # self.weather = self.weather[weather_inds, :4642]
-        self.weather = np.empty(
-                (len(weather_inds), 4642, *self.weather_src.shape[2:]),
-                dtype=np.uint8
+        start_time = datetime.now()
+        weather_src = datafile['weather']
+        self.weather, self.weather_time_map = self._load_data(
+                weather_src,
+                weather_inds,
+                start_date,
+                end_date,
         )
-        for i, ind in enumerate(weather_inds):
-            self.weather_src.read_direct(self.weather[i], np.s_[ind, :4642, ...])
+        print(f"Loaded weather in {datetime.now() - start_time}")
 
+        # TODO move this to data.h5
         with open("indices.json") as f:
             self.site_locations = {
                 data_source: {
@@ -76,8 +79,34 @@ class ClimatehackDataset(Dataset):
                 } for data_source, locations in json.load(f).items()
             }
 
+        datafile.close()
+
+    def _load_data(self, src: h5py.Dataset, channels: list[int], start_time: datetime, end_time: datetime):
+        times = src.attrs['times']
+        start_i = np.argmax(times >= start_time.timestamp())
+        end_i = times.shape[0] - np.argmax(times[::-1] < end_time.timestamp())
+
+        output = np.empty(
+                (len(channels), end_i - start_i, *src.shape[2:]),
+                dtype=np.uint8
+        )
+        # this does: out = src[selected_channels, selected_times] but faster
+        # (unless selected channels are consequtive, but let's ignore that tiny detail)
+        for i, ch in enumerate(channels):
+            src.read_direct(output[i], np.s_[ch, start_i:end_i])
+
+        time_map = {t: i for i, t in enumerate(times[start_i:end_i])}
+        return output, time_map
+
+    def _filter_bake_index(self):
+        self.bake_index = self.bake_index[
+            (self.bake_index['time'] >= self.start_date.timestamp()) &
+            (self.bake_index['time'] < self.end_date.timestamp()) &
+            self.bake_index['nonhrv_flags'].all(axis=1) &
+            self.bake_index['weather_flags'].all(axis=1)
+        ]
+
     def __len__(self):
-        # TODO: filter dataset based on requirements
         return len(self.bake_index)
 
     def __getitem__(self, idx):

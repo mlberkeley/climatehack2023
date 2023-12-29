@@ -17,7 +17,7 @@ class Evaluator(BaseEvaluator):
         """Sets up anything required for evaluation, e.g. loading a model."""
 
         self.model = Model().to(device)
-        self.model.load_state_dict(torch.load("best_model_multi.pt", map_location=device))
+        self.model.load_state_dict(torch.load("bigger_batch.pt", map_location=device))
         self.model.eval()
 
     def predict(self, features: h5py.File):

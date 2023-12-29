@@ -22,7 +22,8 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
     for i, data in enumerate(dataloader):
         data = [dat.to(device, dtype=torch.float) for dat in data]
         pv_targets = data[3]
-        data = [data[2], data[4], data[5]]
+        # FIXME
+        data = [data[2], data[4]]
         predictions = model(
             *data
         )
