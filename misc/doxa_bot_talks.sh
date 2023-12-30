@@ -1,0 +1,1 @@
+curl -X POST -H 'Content-type: application/json' --data "{"text":'$(cat patch_notes.txt)'}" https://hooks.slack.com/services/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

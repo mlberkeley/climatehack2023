@@ -1,5 +1,3 @@
-python query_scoreboard.py
-
 curl -X POST -H 'Content-type: application/json' --data "{
 	\"blocks\": [
         {
@@ -16,7 +14,7 @@ curl -X POST -H 'Content-type: application/json' --data "{
 			\"type\": \"section\",
 			\"text\": {
 				\"type\": \"mrkdwn\",
-				\"text\": \"$(cat scoreboard.txt)\"
+				\"text\": \"$(cat /home/gracetang/climatehack2023/misc/scoreboard.txt)\"
 			}
 		}
     ]
