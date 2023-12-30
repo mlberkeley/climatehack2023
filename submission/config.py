@@ -8,7 +8,6 @@ config.train = edict()
 config.train.model_save_name = "bigger_batch.pt"
 config.train.batch_size = 256
 config.train.num_epochs = 1000
-config.train.num_workers = 8
 config.train.lr = 1e-3
 config.train.clip_grad_norm = 1
 config.train.random_site_threshold = .02
@@ -21,10 +20,22 @@ config.train.eval_resolution = 60
 config.train.weather_keys = ["clch", "clcl", "clcm", "clct", "h_snow", "w_snow", "t_g", "t_2m", "tot_prec"]
 config.train.weather_groups = [4, 2, 2, 1]
 
+# EVAL CONFIG
+config.eval = edict()
+config.eval.batch_size = 256
+
 # DATA CONFIG
 config.data = edict()
 config.data.channel = 8
 config.data.hrv_path = "/data/climatehack/official_dataset/hrv"
 config.data.nonhrv_path = "/data/climatehack/official_dataset/nonhrv"
-config.data.start_date = datetime(2020, 1, 1)
-config.data.end_date = datetime(2020, 12, 30)
+config.data.num_workers = 16
+
+config.data.train_start_date = datetime(2020, 1, 1)
+config.data.train_end_date = datetime(2021, 1, 1)  # end date not inclusive
+# subsets are randomly sampled from the full dataset using a seed of 21
+config.data.train_subset_size = 0 # 0 means use all data
+
+config.data.eval_start_date = datetime(2021, 1, 1)
+config.data.eval_end_date = datetime(2022, 1, 1)
+config.data.eval_subset_size = 2560

@@ -266,6 +266,57 @@ def _resnet(
     return model
 
 
+class ResNet18(nn.Module):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
+        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
+
+    def forward(self, pv, hrv):
+        feature = self.resnet_backbone(hrv)
+        x = torch.concat((feature, pv), dim=-1)
+
+        x = torch.sigmoid(self.linear1(x))
+
+        return x
+
+
+class ResNet34(nn.Module):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.resnet_backbone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
+        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
+
+    def forward(self, pv, hrv):
+        feature = self.resnet_backbone(hrv)
+        x = torch.concat((feature, pv), dim=-1)
+
+        x = torch.sigmoid(self.linear1(x))
+
+        return x
+
+
+class ResNet50(nn.Module):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.resnet_backbone = _resnet(Bottleneck, [3, 4, 6, 3], None, True)
+        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
+
+    def forward(self, pv, hrv):
+        feature = self.resnet_backbone(hrv)
+        x = torch.concat((feature, pv), dim=-1)
+
+        x = torch.sigmoid(self.linear1(x))
+
+        return x
+
+
 class Model(nn.Module):
 
     def __init__(self) -> None:
