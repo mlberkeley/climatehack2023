@@ -12,7 +12,6 @@ import wandb
 
 from data.data import ChallengeDataset
 from data.random_data import ClimatehackDataset
-# from submission.model import Model
 from submission.resnet import ResNet18 as Model
 from submission.config import config
 from util import util
@@ -34,8 +33,6 @@ if device == "cpu":
 # summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
 summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)], device=device)
 
-# data = "nonhrv"
-# year = 2020
 validation_loss, min_val_loss = 0, .15
 
 # Actually do the training wow
@@ -117,8 +114,8 @@ for epoch in range(config.train.num_epochs):
 
         if i % 10 == 6:
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
-            os.makedirs("submission2", exist_ok=True)
-            torch.save(model.state_dict(), f"submission2/{file_save_name}")
+            os.makedirs("submission", exist_ok=True)
+            torch.save(model.state_dict(), f"submission/{file_save_name}")
 
             sample_pv, sample_vis = util.visualize_example(
                 pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
@@ -126,13 +123,11 @@ for epoch in range(config.train.num_epochs):
 
             if i % 80 == 6:
                 st = datetime.now()
-                #del time, site, pv_features, pv_targets, nonhrv_features, nwp_features
-                #torch.cuda.empty_cache()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_dataloader, model)
                 print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
                 if validation_loss < min_val_loss:
-                    torch.save(model.state_dict(), f"submission2/best_{file_save_name}")
+                    torch.save(model.state_dict(), f"submission/best_{file_save_name}")
                     min_val_loss = validation_loss
 
             wandb.log({
