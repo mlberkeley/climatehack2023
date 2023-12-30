@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader
 from torchinfo import summary
 from data.data import ChallengeDataset
 from submission.model import Model
-#from submission.resnet import Model
 from submission.config import config
 from util import util
 
@@ -16,30 +15,26 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tot_loss, count = 0, 0
 
-    model.to(device)
+    with torch.no_grad():
+        for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features) in enumerate(dataloader):
+            pv_features, nonhrv_features, nwp_features, pv_targets = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float)
 
+            predictions = model(
+                pv_features,
+                nonhrv_features
+            )
 
-    for i, data in enumerate(dataloader):
-        data = [dat.to(device, dtype=torch.float) for dat in data]
-        pv_targets = data[3]
-        # FIXME
-        data = [data[2], data[4]]
-        predictions = model(
-            *data
-        )
+            loss = criterion(predictions, pv_targets)
 
-        loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
-
-        size = int(pv_targets.size(0))
-        tot_loss += float(loss) * size
-        count += size
+            size = int(pv_targets.size(0))
+            tot_loss += float(loss) * size
+            count += size
 
     model.train()
-    #del loss, data
-    #torch.cuda.empty_cache()
 
     return (tot_loss / count)
 
+#WARNING uses old dataset
 if __name__ == "__main__":
     model = Model()
     model.load_state_dict(torch.load("./submission/model.pt"))
