@@ -2,12 +2,8 @@ import torch
 import torch.nn as nn
 from typing import Any, Callable, List, Optional, Type, Union
 from torch import Tensor
-<<<<<<< HEAD
 from util import util
 #from submission.config import config
-=======
-
->>>>>>> 0632eb6f3978a2e8ef741244a77558e93236cd22
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""

@@ -10,8 +10,8 @@ from torchinfo import summary
 from datetime import datetime
 
 from data.random_data import ClimatehackDataset
-#from submission.resnet import NonHRVMeta as Model
-from submission.resnet import NoImage as Model
+from submission.resnet import NonHRVMeta as Model
+#from submission.resnet import NoImage as Model
 from submission.config import config
 from util import util
 from eval import eval
