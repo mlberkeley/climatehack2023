@@ -36,8 +36,9 @@ config.data.num_workers = 16
 config.data.train_start_date = datetime(2020, 1, 1)
 config.data.train_end_date = datetime(2021, 1, 1)  # end date not inclusive
 # subsets are randomly sampled from the full dataset using a seed of 21
-config.data.train_subset_size = 0 # 0 means use all data
+config.data.train_subset_size = 0  # 0 means use all data
 
 config.data.eval_start_date = datetime(2021, 1, 1)
 config.data.eval_end_date = datetime(2022, 1, 1)
 config.data.eval_subset_size = 2560
+

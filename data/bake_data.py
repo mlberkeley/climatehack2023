@@ -20,8 +20,8 @@ WEATHER_KEYS = ["alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", 
 
 WEATHER_RANGES = {'alb_rad': (0, 100), 'aswdifd_s': (0.0, 544.5), 'aswdir_s': (0.0, 864.0), 'cape_con': (0.0, 2244.0), 'clch': (0.0, 100.0), 'clcl': (0.0, 100.0), 'clcm': (0.0, 100.0), 'clct': (0.0, 100.0), 'h_snow': (0.0, 4.3086), 'omega_1000': (-10.32, 13.172), 'omega_700': (-40.28, 26.891), 'omega_850': (-33.34, 22.797), 'omega_950': (-16.77, 14.117), 'pmsl': (93928.17, 105314.26), 'relhum_2m': (0, 100), 'runoff_g': (-0.2157, 153.75), 'runoff_s': (-1.979e-05, 123.94), 't_2m': (248.9, 313.75), 't_500': (228.4, 269.75), 't_850': (250.5, 299.75), 't_950': (254.1, 309.5), 't_g': (235.8, 322.5), 'td_2m': (233.5, 297.75), 'tot_prec': (0.0, 150.75), 'u_10m': (-27.22, 29.094), 'u_50': (-28.66, 73.375), 'u_500': (-49.12, 79.5), 'u_850': (-46.31, 47.188), 'u_950': (-37.47, 39.812), 'v_10m': (-26.95, 28.469), 'v_50': (-56.91, 51.812), 'v_500': (-59.09, 60.844), 'v_850': (-37.09, 48.625), 'v_950': (-39.81, 42.469), 'vmax_10m': (0.05722, 65.062), 'w_snow': (0.0, 1422.0), 'ww': (0, 100), 'z0': (2.95e-05, 1.0)}
 
-class BakerDataset(IterableDataset):
 
+class BakerDataset(IterableDataset):
     def __init__(self):
         root_dir = Path("/data/climatehack/official_dataset")
         self.pv = pd.concat([
@@ -65,7 +65,6 @@ class BakerDataset(IterableDataset):
     def __iter__(self):
         pv = self.pv
         nwp = self.weather
-        nonhrv = self.nonhrv
 
         # for each date, iterate over sites
         # for each site, get pv features and targets

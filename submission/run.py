@@ -3,13 +3,15 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 
-
 import h5py
 import torch
+
 from competition import BaseEvaluator
 from resnet import ResNet18 as Model
 
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class Evaluator(BaseEvaluator):
     def setup(self) -> None:
@@ -38,16 +40,17 @@ class Evaluator(BaseEvaluator):
             for data_tuple in self.batch(features, variables=["pv", "nonhrv", "clch", "clcl", "clcm", "clct", "h_snow", "w_snow", "t_g", "t_2m", "tot_prec"], batch_size=32):
                 # Produce solar PV predictions for this batch
                 nonhrv = data_tuple[1]
-                nonhrv = nonhrv[...,8]
+                nonhrv = nonhrv[..., 8]
                 pv = data_tuple[0]
                 nwp = torch.concat([torch.from_numpy(x) for x in data_tuple[2:]], dim=1)
+
                 print(nwp.shape, file=sys.stderr)
-                a = self.model(
+
+                yield self.model(
                     torch.from_numpy(pv).to(device),
                     torch.from_numpy(nonhrv).to(device),
                     # nwp.to(device),
                 )
-                yield a
 
 
 if __name__ == "__main__":

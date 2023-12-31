@@ -8,9 +8,7 @@ from datetime import datetime, time, timedelta
 from submission.config import config
 from pathlib import Path
 import pandas as pd
-#import modin.pandas as pd
 import xarray as xr
-from ocf_blosc2 import Blosc2
 import json
 
 
@@ -42,25 +40,25 @@ class ChallengeDataset(IterableDataset):
             pv = pd.concat(months)
 
             def xr_open(path):
-                return xr.open_dataset( path,
-                    engine="zarr",
-                    consolidated=True,)
+                return xr.open_dataset(path,
+                                       engine="zarr",
+                                       consolidated=True)
 
             nonhrv_data = [xr_open(f"/data/climatehack/official_dataset/nonhrv/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, eval_hours)) for month in range(1, 13)]
 
-            nonhrv = xr.concat(nonhrv_data, dim = "time")
+            nonhrv = xr.concat(nonhrv_data, dim="time")
 
             nwp_data = [xr_open(f"/data/climatehack/official_dataset/weather/{year}/{month}.zarr.zip").sel(time=timeSlice(year, month, eval_day, eval_hours)) for month in range(1, 13)]
-            nwp = xr.concat(nwp_data, dim = "time")
+            nwp = xr.concat(nwp_data, dim="time")
 
         # pre-computed indices corresponding to each solar PV site stored in indices.json
         with open("indices.json") as f:
             site_locations = {
-                data_source: {
-                    int(site): (int(location[0]), int(location[1]))
-                    for site, location in locations.items()
-                } for data_source, locations in json.load(f).items()
-            }
+                    data_source: {
+                        int(site): (int(location[0]), int(location[1]))
+                        for site, location in locations.items()
+                        } for data_source, locations in json.load(f).items()
+                    }
 
         self.pv = pv
         self.nonhrv = nonhrv
@@ -90,31 +88,29 @@ class ChallengeDataset(IterableDataset):
             for t in self.nwp["time"][::config.train.eval_resolution // 5]:
                 yield datetime.fromtimestamp(t.item() / 1e9)
 
-
     def __iter__(self):
         pv = self.pv
         nwp = self.nwp
-        nonhrv = self.nonhrv
 
         rand_time_thresh, rand_site_thresh = config.train.random_time_threshold, config.train.random_site_threshold
 
         for time in self._get_image_times():
             if (not self.eval) and np.random.uniform(0, 1) > rand_time_thresh:
-                 continue
+                continue
 
             first_hour = slice(str(time), str(time + timedelta(minutes=55)))
 
             pv_features = pv.xs(
                     first_hour,
                     # drop_level=False
-            )  # type: ignore
+                    )  # type: ignore
             pv_targets = pv.xs(
-                slice(  # type: ignore
-                    str(time + timedelta(hours=1)),
-                    str(time + timedelta(hours=4, minutes=55)),
-                ),
-                # drop_level=False,
-            )
+                    slice(  # type: ignore
+                          str(time + timedelta(hours=1)),
+                          str(time + timedelta(hours=4, minutes=55)),
+                          ),
+                    # drop_level=False,
+                    )
 
             nonhrv_data = self.nonhrv["data"].sel(time=first_hour).to_numpy()
 
@@ -123,8 +119,8 @@ class ChallengeDataset(IterableDataset):
             nwp_data = xr.concat([nwp_data[k] for k in config.train.weather_keys], dim="time").values
 
             if not (nwp_data.shape == (6 * len(config.train.weather_keys), 305, 289)):
-                    #print(f"nwp pre site shape error: {nwp_data.shape}")
-                    continue
+                # print(f"nwp pre site shape error: {nwp_data.shape}")
+                continue
 
             for site in self._sites:
                 if (not self.eval) and np.random.uniform(0, 1) > rand_site_thresh:
@@ -146,6 +142,7 @@ class ChallengeDataset(IterableDataset):
                 # Get a 128x128 HRV crop centred on the site over the previous hour
                 if not (site in self._site_locations["weather"]):
                     continue
+
                 if not (site in self._site_locations["nonhrv"]):
                     continue
 
@@ -154,25 +151,24 @@ class ChallengeDataset(IterableDataset):
 
                 nonhrv_features = nonhrv_data[:, y - 64: y + 64, x - 64: x + 64, config.data.channel]
                 nwp_features = nwp_data[:, y_nwp - 64 : y_nwp + 64, x_nwp - 64 : x_nwp + 64]
-                #hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, :]
-                #hrv_features = hrv_data.reshape((hrv_data.shape[0], hrv_data.shape[1], hrv_data.shape[2]*hrv_data.shape[3]))
+                # hrv_features = hrv_data[:, y - 64: y + 64, x - 64: x + 64, :]
+                # hrv_features = hrv_data.reshape((hrv_data.shape[0], hrv_data.shape[1], hrv_data.shape[2]*hrv_data.shape[3]))
 
                 if np.isnan(nonhrv_features).any():
                     continue
                 if np.isnan(nwp_features).any():
-                    #print(f'WARNING: NaN in nwp_features for {time=}, {site=}')
+                    # print(f'WARNING: NaN in nwp_features for {time=}, {site=}')
                     continue
 
                 if not (nonhrv_features.shape == (12, 128, 128)):
-                    #print(f"shapemismatch got shape {nonhrv_features.shape}")
+                    # print(f"shapemismatch got shape {nonhrv_features.shape}")
                     continue
-                #if not (hrv_features.shape == (12, 128, 128, 3)):
+                # if not (hrv_features.shape == (12, 128, 128, 3)):
                     # print('hrv shape mismatch')
-                    #continue
+                    # continue
 
                 if not (nwp_features.shape == (6 * len(config.train.weather_keys), 128, 128)):
-                        continue
-
+                    continue
 
                 date_string = time.strftime("%y%m%d%H%M")
                 date_int = int(date_string)
@@ -181,6 +177,5 @@ class ChallengeDataset(IterableDataset):
 
 
 if __name__ == "__main__":
-    #data = ChallengeDataset("nonhrv", 2020)
     eval_data = ChallengeDataset("nonhrv", 2020, eval=True)
     a = iter(eval_data)
