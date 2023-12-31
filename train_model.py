@@ -12,7 +12,8 @@ import wandb
 
 from data.data import ChallengeDataset
 from data.random_data import ClimatehackDataset
-from submission.resnet import ResNet18 as Model
+#from submission.resnet import NonHRVMeta as Model
+from submission.resnet import NoImage as Model
 from submission.config import config
 from util import util
 from eval import eval
@@ -31,7 +32,7 @@ if device == "cpu":
 
 
 # summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
-summary(Model(), input_size=[(1, 12), (1, 12, 128, 128)], device=device)
+summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 5)], device=device)
 
 validation_loss, min_val_loss = 0, .15
 
@@ -92,14 +93,15 @@ for epoch in range(config.train.num_epochs):
     running_loss = 0.0
     count = 0
     last_time = datetime.now()
-    for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features) in enumerate(dataloader):
+    for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features, site_features) in enumerate(dataloader):
         optimizer.zero_grad()
-        pv_features, nonhrv_features, nwp_features, pv_targets = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float)
+        pv_features, nonhrv_features, nwp_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
 
         predictions = model(
             pv_features,
             nonhrv_features,
             # nwp_features,
+            site_features
         )
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
@@ -127,7 +129,7 @@ for epoch in range(config.train.num_epochs):
                 validation_loss = eval(eval_dataloader, model)
                 print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
                 if validation_loss < min_val_loss:
-                    torch.save(model.state_dict(), f"submission/best_{file_save_name}")
+                    #torch.save(model.state_dict(), f"submission/best_{file_save_name}")
                     min_val_loss = validation_loss
 
             wandb.log({

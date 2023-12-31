@@ -16,12 +16,13 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
     tot_loss, count = 0, 0
 
     with torch.no_grad():
-        for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features) in enumerate(dataloader):
-            pv_features, nonhrv_features, nwp_features, pv_targets = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float)
+        for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features, site_features) in enumerate(dataloader):
+            pv_features, nonhrv_features, nwp_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
 
             predictions = model(
                 pv_features,
-                nonhrv_features
+                nonhrv_features,
+                site_features
             )
 
             loss = criterion(predictions, pv_targets)

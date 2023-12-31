@@ -3,6 +3,7 @@ import torch.nn as nn
 from functools import partial
 from typing import Any, Callable, List, Optional, Type, Union
 from torch import Tensor
+from util import util
 #from submission.config import config
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
@@ -355,3 +356,47 @@ class Model(nn.Module):
         return x
 
 
+class NonHRVMeta(nn.Module):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.resnet_backbone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
+        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12 + 5, 48 * 4)
+        self.linear2 = nn.Linear(48 * 4, 48)
+        self.lin0 = nn.Linear(12 + 5, 12 + 5)
+        self.r = nn.ReLU(inplace=True)
+
+    def forward(self, pv, nonhrv, site_features):
+        feature = self.resnet_backbone(nonhrv)
+        site_features = util.site_normalize(site_features)
+        lin0_feat = self.r(self.lin0(torch.concat((pv, site_features), dim=-1)))
+
+        x = torch.concat((feature, lin0_feat), dim=-1)
+
+        x = self.r(self.linear1(x))
+        x = torch.sigmoid(self.linear2(x))
+
+        return x
+
+class NoImage(nn.Module):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.lin1 = nn.Linear(17, 30)
+        self.lin2 = nn.Linear(30, 90)
+        self.lin3 = nn.Linear(90, 80)
+        self.lin4 = nn.Linear(80, 48)
+        self.r = nn.LeakyReLU(inplace=True)
+
+    def forward(self, pv, nonhrv, site_features):
+        site_features = util.site_normalize(site_features)
+
+        x = self.r(self.lin1(torch.concat((pv, site_features), dim=-1)))
+
+        x = self.r(self.lin2(x))
+        x = self.r(self.lin3(x))
+        x = torch.sigmoid(self.lin4(x))
+
+        return x

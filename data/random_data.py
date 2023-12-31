@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import Dataset
 import pickle
 import h5py
+from util import util
 
 
 # TODO possibly get rid of this shit
@@ -28,6 +29,8 @@ class ClimatehackDataset(Dataset):
         self.end_date = end_date
         self.root_dir = root_dir
         self.features = features
+
+        self.meta = pd.read_csv("/data/climatehack/official_dataset/pv/meta.csv")
 
         datafile = h5py.File(f'{root_dir}/baked_data.h5', 'r')
 
@@ -162,4 +165,8 @@ class ClimatehackDataset(Dataset):
         weather_features = weather_features.reshape((6 * len(weather_keys), 128, 128))
         weather_features = weather_features.astype(np.float32) / 255
 
-        return timestamp, site, pv_features, pv_targets, nonhrv_features, weather_features
+        df = self.meta
+        ss_id, lati, longi, _, orientation, tilt, kwp, _ = df.iloc[np.searchsorted(df['ss_id'].values, site)]
+        site_features = torch.tensor([lati, longi, orientation, tilt, kwp])
+
+        return timestamp, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features
