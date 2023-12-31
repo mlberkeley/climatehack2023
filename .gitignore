@@ -164,5 +164,3 @@ out
 *.pt
 vis/
 wandb/
-misc/scoreboard.txt
-misc/winners.json
