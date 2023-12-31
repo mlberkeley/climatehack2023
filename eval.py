@@ -1,13 +1,10 @@
-from datetime import datetime, time, timedelta
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchinfo import summary
 from data.data import ChallengeDataset
 from submission.model import Model
 from submission.config import config
-from util import util
+
 
 def eval(dataloader, model, criterion=nn.L1Loss()):
     model.eval()
@@ -35,7 +32,8 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
 
     return (tot_loss / count)
 
-#WARNING uses old dataset
+
+# WARN: uses old dataset
 if __name__ == "__main__":
     model = Model()
     model.load_state_dict(torch.load("./submission/model.pt"))
