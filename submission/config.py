@@ -3,6 +3,7 @@ from datetime import datetime
 
 config = edict()
 
+
 # TRAIN CONFIG
 config.train = edict()
 config.train.model_save_name = "bigger_batch.pt"
@@ -20,15 +21,16 @@ config.train.eval_resolution = 60
 config.train.weather_keys = ["clch", "clcl", "clcm", "clct", "h_snow", "w_snow", "t_g", "t_2m", "tot_prec"]
 config.train.weather_groups = [4, 2, 2, 1]
 
+
 # EVAL CONFIG
 config.eval = edict()
 config.eval.batch_size = 256
 
+
 # DATA CONFIG
 config.data = edict()
+
 config.data.channel = 8
-config.data.hrv_path = "/data/climatehack/official_dataset/hrv"
-config.data.nonhrv_path = "/data/climatehack/official_dataset/nonhrv"
 config.data.num_workers = 16
 
 config.data.train_start_date = datetime(2020, 1, 1)

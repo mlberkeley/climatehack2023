@@ -1,0 +1,6 @@
+:bangbang: PATCH NOTES :bangbang:
+:melting_face: So I heard you want to hear from me less… that’s alright
+:bear: I was too lazy to handle the case of multiple mlabbers switching places, so that still triggers me sometimes
+:trophy: If we stay in first though, and the names of the top 5 don’t change, nothing will get resent
+:rotating_light: Buuuut I will resend and a special message if someone other than us dips below .12!
+:gift: Also, I made some minor tweaks to the messages that are sent ;)
