@@ -5,7 +5,7 @@ config = edict()
 
 # TRAIN CONFIG
 config.train = edict()
-config.train.model_save_name = "bigger_batch.pt"
+config.train.model_save_name = "noimage.pt"
 config.train.batch_size = 256
 config.train.num_epochs = 1000
 config.train.lr = 1e-3
