@@ -10,8 +10,7 @@ from torchinfo import summary
 from datetime import datetime
 
 from data.random_data import ClimatehackDataset
-from submission.resnet import NonHRVMeta as Model
-#from submission.resnet import NoImage as Model
+from submission.resnet import MainModel as Model
 from submission.config import config
 from util import util
 from eval import eval
@@ -25,14 +24,6 @@ parser.add_argument("-m", "--run_notes", type=str, default=None)
 
 args = parser.parse_args()
 
-wandb.init(
-    entity="mlatberkeley",
-    project="climatehack23",
-    config=dict(config),
-    mode="online",
-    name=args.run_name,
-    notes=args.run_notes
-)
 
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -43,8 +34,15 @@ if device == "cpu":
         print("YOU ARE IN CPU MODE")
 
 
-# summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 6 * len(config.train.weather_keys), 128, 128)], device=device)
-summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 5)], device=device)
+summary(Model(), input_size=[(1, 12), (1, 5), (1, 3, 12, 128, 128), (1, 4, 6, 128, 128)], device=device)
+#predictions = model(
+    #pv_features,
+    #site_features,
+    #nonhrv_features,
+    #weather_features,
+#)
+
+#summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 5)], device=device)
 
 validation_loss, min_val_loss = 0, .15
 
@@ -93,6 +91,19 @@ eval_dataloader = DataLoader(
         num_workers=config.data.num_workers,
         shuffle=False
 )
+#for i, (time, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features) in enumerate(dataloader):
+        #optimizer.zero_grad()
+        #pv_features, nonhrv_features, weather_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), weather_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
+        #print(nonhrv_features.shape)
+
+wandb.init(
+    entity="mlatberkeley",
+    project="climatehack23",
+    config=dict(config),
+    mode="online",
+    name=args.run_name,
+    notes=args.run_notes
+)
 
 
 # INFO: train
@@ -103,15 +114,18 @@ for epoch in range(config.train.num_epochs):
     running_loss = 0.0
     count = 0
     last_time = datetime.now()
-    for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features, site_features) in enumerate(dataloader):
+    for i, (time, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features) in enumerate(dataloader):
         optimizer.zero_grad()
-        pv_features, nonhrv_features, nwp_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
+        pv_features, nonhrv_features, weather_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), weather_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
+
+        #print("nonhrv shapes: ", nonhrv_features.shape())
+        #print("weather shapes: ", weather_features.shape())
 
         predictions = model(
             pv_features,
+            site_features,
             nonhrv_features,
-            # nwp_features,
-            site_features
+            weather_features,
         )
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
@@ -127,17 +141,18 @@ for epoch in range(config.train.num_epochs):
         if i % 10 == 6:
             print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
             os.makedirs("submission", exist_ok=True)
-            torch.save(model.state_dict(), f"submission/{config.train.model_save_name}")
 
-            sample_pv, sample_vis = util.visualize_example(
-                pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
-            )
+            #sample_pv, sample_vis = util.visualize_example(
+                #pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
+            #)
 
-            if i % 80 == 6:
+            if i % 140 == 6:
                 st = datetime.now()
                 print(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_dataloader, model)
                 print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
+
+                torch.save(model.state_dict(), f"submission/{config.train.model_save_name}")
                 if validation_loss < min_val_loss:
                     #torch.save(model.state_dict(), f"submission/best_{file_save_name}")
                     min_val_loss = validation_loss
@@ -145,8 +160,8 @@ for epoch in range(config.train.num_epochs):
             wandb.log({
                 "train_loss": running_loss / (count + 1e-10),
                 "validation_loss": validation_loss,
-                "sample_pv": sample_pv,
-                "sample_vis": sample_vis,
+                #"sample_pv": sample_pv,
+                #"sample_vis": sample_vis,
             })
 
     print(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
