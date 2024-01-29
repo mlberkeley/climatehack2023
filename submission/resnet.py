@@ -399,3 +399,104 @@ class NoImage(nn.Module):
         x = torch.sigmoid(self.lin4(x))
 
         return x
+
+
+class NonHRVBackbone(nn.Module):
+    block_type = BasicBlock
+    output_dim = 512 * block_type.expansion
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.resnet_backbone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
+        #self.r = nn.LeakyReLU(inplace=True)
+
+    def forward(self, nonhrv):
+        x = self.resnet_backbone(nonhrv)
+        #x = self.r(x)
+        return x
+
+class MetaAndPv(nn.Module):
+    output_dim = 40
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.lin1 = nn.Linear(17, 30)
+        self.lin2 = nn.Linear(30, 50)
+        self.lin3 = nn.Linear(50, self.output_dim)
+        self.r = nn.ReLU(inplace=True)
+
+    def forward(self, pv, site_features):
+        site_features = util.site_normalize(site_features)
+        pv = 3*pv - 1.5      #pv is 0-1, lets make it -1.5 to 1.5
+        features = torch.concat((pv, site_features), dim=-1)
+
+        x = self.r(self.lin1(features))
+        x = self.r(self.lin2(x))
+        x = self.lin3(x)
+
+        return x
+
+class WeatherBackbone(nn.Module):
+    block_type = BasicBlock
+    output_dim = 512 * block_type.expansion
+    def __init__(self, channels=1) -> None:
+        super().__init__()
+
+        #self.input_dim = (6*channels, 128, 128)
+        self.input_dim = (128, 128)
+
+        self.weather_bone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
+        self.weather_bone.conv1 = nn.Conv2d(6, 64, kernel_size=7, stride=2, padding=3, bias=False)   
+        #6 because 6 hours (default is 12 in resnet), 64 because inplanes (weather_bone.inplanes was breaking batchnorm for some reason)
+
+        #self.batch_norm = nn.BatchNorm2d(6)
+        self.layer_norm = nn.LayerNorm(self.input_dim)
+        #self.r = nn.LeakyReLU(inplace=True)
+
+    def forward(self, weather):
+        #x = weather
+        #x = self.batch_norm(weather)
+        x = self.layer_norm(weather)
+        x = self.weather_bone(x)
+        #x = self.r(x)
+        return x
+
+class MainModel(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.weather_channels = 4
+        self.nonhrv_channels = 3
+        meta_channels = 5
+        pv_channels = 12
+
+        self.MetaAndPv = MetaAndPv()
+        self.WeatherBackbones = nn.ModuleList([WeatherBackbone() for i in range(self.weather_channels)])
+        self.NonHRVBackbones = nn.ModuleList([NonHRVBackbone() for i in range(self.nonhrv_channels)])
+
+
+        self.linear1 = nn.Linear(MetaAndPv.output_dim + self.nonhrv_channels * NonHRVBackbone.output_dim + self.weather_channels * WeatherBackbone.output_dim, 48 * 10)
+        #self.linear1 = nn.Linear(MetaAndPv.output_dim + self.nonhrv_channels * NonHRVBackbone.output_dim, 48 * 10)
+        self.linear2 = nn.Linear(48 * 10 + 17, 48)
+        #self.linear3 = nn.Linear(48 * 4, 48)
+        self.r = nn.ReLU(inplace=True)
+
+    def forward(self, pv, site_features, nonhrv, weather):
+        #for now dims are [(batch, 12), (batch, 5), (batch, 3, 12, 128, 128), (batch, 3, 6, 128, 128)]
+        feat1 = self.MetaAndPv(pv, site_features)
+        feat2 = torch.concat([self.NonHRVBackbones[channel](nonhrv[:,channel]) for channel in range(self.nonhrv_channels)], dim=-1)
+        feat3 = torch.concat([self.WeatherBackbones[channel](weather[:,channel]) for channel in range(self.weather_channels)], dim=-1)
+
+        #all_feat = torch.concat([feat1, feat2], dim=-1)
+        all_feat = torch.concat([feat1, feat2, feat3], dim=-1)
+        pv_site_raw = torch.concat([pv, site_features], dim=-1)
+
+        x = self.r(self.linear1(all_feat))
+
+        x = torch.concat([x, pv_site_raw], dim=-1)
+        #x = self.r(self.linear2(x))
+        #x = torch.sigmoid(self.linear3(x))
+        x = torch.sigmoid(self.linear2(x))
+
+        return x
+

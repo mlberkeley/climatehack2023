@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from data.data import ChallengeDataset
-from submission.model import Model
 from submission.config import config
 
 
@@ -13,13 +11,14 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
     tot_loss, count = 0, 0
 
     with torch.no_grad():
-        for i, (time, site, pv_features, pv_targets, nonhrv_features, nwp_features, site_features) in enumerate(dataloader):
-            pv_features, nonhrv_features, nwp_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
+        for i, (time, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features) in enumerate(dataloader):
+            pv_features, nonhrv_features, weather_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), weather_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
 
             predictions = model(
                 pv_features,
+                site_features,
                 nonhrv_features,
-                site_features
+                weather_features,
             )
 
             loss = criterion(predictions, pv_targets)
@@ -35,6 +34,8 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
 
 # WARN: uses old dataset
 if __name__ == "__main__":
+    from submission.model import MainModel
+    from data.data import ChallengeDataset
     model = Model()
     model.load_state_dict(torch.load("./submission/model.pt"))
     print("model loaded")
