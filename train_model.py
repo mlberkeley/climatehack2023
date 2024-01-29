@@ -19,6 +19,7 @@ from pathlib import Path
 
 # INFO: setup
 parser = argparse.ArgumentParser()
+parser.add_argument("--nowandb", action='store_true')
 parser.add_argument("-n", "--run_name", type=str, default=None)
 parser.add_argument("-m", "--run_notes", type=str, default=None)
 
@@ -100,7 +101,7 @@ wandb.init(
     entity="mlatberkeley",
     project="climatehack23",
     config=dict(config),
-    mode="online",
+    mode="offline" if args.nowandb else "online",
     name=args.run_name,
     notes=args.run_notes
 )
