@@ -475,9 +475,9 @@ class MainModel(nn.Module):
         self.NonHRVBackbones = nn.ModuleList([NonHRVBackbone() for i in range(self.nonhrv_channels)])
 
 
-        self.linear1 = nn.Linear(MetaAndPv.output_dim + self.nonhrv_channels * NonHRVBackbone.output_dim + self.weather_channels * WeatherBackbone.output_dim, 48 * 10)
-        #self.linear1 = nn.Linear(MetaAndPv.output_dim + self.nonhrv_channels * NonHRVBackbone.output_dim, 48 * 10)
-        self.linear2 = nn.Linear(48 * 10 + 17, 48)
+        #self.linear1 = nn.Linear(MetaAndPv.output_dim + self.nonhrv_channels * NonHRVBackbone.output_dim + self.weather_channels * WeatherBackbone.output_dim, 48 * 10)
+        self.linear1 = nn.Linear(MetaAndPv.output_dim + self.nonhrv_channels * NonHRVBackbone.output_dim, 48 * 10)
+        self.linear2 = nn.Linear(48 * 10, 48)
         #self.linear3 = nn.Linear(48 * 4, 48)
         self.r = nn.ReLU(inplace=True)
 
@@ -485,15 +485,15 @@ class MainModel(nn.Module):
         #for now dims are [(batch, 12), (batch, 5), (batch, 3, 12, 128, 128), (batch, 3, 6, 128, 128)]
         feat1 = self.MetaAndPv(pv, site_features)
         feat2 = torch.concat([self.NonHRVBackbones[channel](nonhrv[:,channel]) for channel in range(self.nonhrv_channels)], dim=-1)
-        feat3 = torch.concat([self.WeatherBackbones[channel](weather[:,channel]) for channel in range(self.weather_channels)], dim=-1)
+        #feat3 = torch.concat([self.WeatherBackbones[channel](weather[:,channel]) for channel in range(self.weather_channels)], dim=-1)
 
-        #all_feat = torch.concat([feat1, feat2], dim=-1)
-        all_feat = torch.concat([feat1, feat2, feat3], dim=-1)
-        pv_site_raw = torch.concat([pv, site_features], dim=-1)
+        all_feat = torch.concat([feat1, feat2], dim=-1)
+        #all_feat = torch.concat([feat1, feat2, feat3], dim=-1)
+        #pv_site_raw = torch.concat([pv, site_features], dim=-1)
 
         x = self.r(self.linear1(all_feat))
 
-        x = torch.concat([x, pv_site_raw], dim=-1)
+        #x = torch.concat([x, pv_site_raw], dim=-1)
         #x = self.r(self.linear2(x))
         #x = torch.sigmoid(self.linear3(x))
         x = torch.sigmoid(self.linear2(x))

@@ -34,6 +34,7 @@ if device == "cpu":
         print("YOU ARE IN CPU MODE")
 
 
+#summary(Model(), input_size=[(1, 12), (1, 5), (1, 3, 12, 128, 128), (1, 4, 6, 128, 128)], device=device)
 summary(Model(), input_size=[(1, 12), (1, 5), (1, 3, 12, 128, 128), (1, 4, 6, 128, 128)], device=device)
 #predictions = model(
     #pv_features,
