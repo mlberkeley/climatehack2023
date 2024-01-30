@@ -306,7 +306,7 @@ class ResNet50(nn.Module):
         super().__init__()
 
         self.resnet_backbone = _resnet(Bottleneck, [3, 4, 6, 3], None, True)
-        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
+        self.linear1 = nn.Linear(512 * Bottleneck.expansion + 12, 48)
 
     def forward(self, pv, hrv):
         feature = self.resnet_backbone(hrv)
@@ -446,7 +446,7 @@ class WeatherBackbone(nn.Module):
         self.input_dim = (128, 128)
 
         self.weather_bone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
-        self.weather_bone.conv1 = nn.Conv2d(6, 64, kernel_size=7, stride=2, padding=3, bias=False)   
+        self.weather_bone.conv1 = nn.Conv2d(6, 64, kernel_size=7, stride=2, padding=3, bias=False)
         #6 because 6 hours (default is 12 in resnet), 64 because inplanes (weather_bone.inplanes was breaking batchnorm for some reason)
 
         #self.batch_norm = nn.BatchNorm2d(6)
