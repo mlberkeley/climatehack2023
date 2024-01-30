@@ -135,101 +135,129 @@ class BakerDataset(IterableDataset):
                 yield int(time.timestamp()), site, nonhrv_flags, weather_flags
 
 
-def main(skip_bake_index=False):
+def main(
+        overwrite=False,
+        skip_bake_index=False,
+        skip_pv=False,
+        skip_nonhrv=False,
+        skip_weather=False,
+    ):
 
     # load pv, weather, nonhrv data
+    print('Loading data')
     dataset = BakerDataset()
+    if overwrite:
+        h5file = h5py.File("data.h5", "w")
+    else:
+        h5file = h5py.File("data.h5", "a")
 
-    # iterate over dates and cosntruct bake index
-    bake_index_dt = np.dtype([
-        ('time', np.int32),
-        ('site', np.int32),
-        ('nonhrv_flags', np.bool_, (11,)),
-        ('weather_flags', np.bool_, (38,)),
-    ], align=True)
-    start = datetime.now()
+    # BAKE INDEX
+    print('Creating/Loading bake index')
     if not skip_bake_index:
+        # iterate over dates and cosntruct bake index
+        start = datetime.now()
         bake_index = []
+
         for i, entry in enumerate(iter(dataset)):
             if i % 10000 == 0:
                 print(i)
             bake_index.append(entry)
 
+        bake_index_dt = np.dtype([
+            ('time', np.int32),
+            ('site', np.int32),
+            ('nonhrv_flags', np.bool_, (11,)),
+            ('weather_flags', np.bool_, (38,)),
+        ], align=True)
         bake_index = np.array(bake_index, dtype=bake_index_dt)
-        np.save("bake_index.npy", bake_index)
+        # np.save("bake_index.npy", bake_index)
 
         end = datetime.now()
+
+        ds = h5file.create_dataset(
+                'bake_index',
+                shape=(len(bake_index),),
+                dtype=bake_index_dt,
+                chunks=(min(10000, len(bake_index)),),
+        )
+        ds[:] = bake_index
+
         print(f'Bake index created in: {end - start}')
     else:
-        bake_index = np.load("bake_index.npy")
+        # bake_index = np.load("bake_index.npy")
+        bake_index = h5file['bake_index'][:]
 
-    h5file = h5py.File("data.h5", "w")
+    # PV
+    if not skip_pv:
+        dataset.pv.to_pickle("pv.pkl")
 
-    # based on bake index, save all pv data to a single hdf5 file
-    ds = h5file.create_dataset(
-            'bake_index',
-            shape=(len(bake_index),),
-            dtype=bake_index_dt,
-            chunks=(min(10000, len(bake_index)),),
-    )
-    ds[:] = bake_index
-
+    # NONHRV
     # based on bake index, save all nonhrv data to a single hdf5 file
     # get timestamps that we need
     # store a map for each mapping from timestamps to indices in the hdf5 files
+    if not skip_nonhrv:
+        times = set(bake_index['time'][bake_index['nonhrv_flags'].any(axis=1)])
+        times = sorted(list(times))
 
-    times = set(bake_index['time'][bake_index['nonhrv_flags'].any(axis=1)])
-    times = sorted(list(times))
+        ds = h5file.create_dataset(
+                "nonhrv",
+                shape=(11, len(times), 12, 293, 333),
+                dtype=np.uint8,
+                chunks=(1, 16, 12, 293, 333),
+        )
+        ds.attrs['times'] = np.array(times, dtype=np.uint32)
 
-    ds = h5file.create_dataset(
-            "nonhrv",
-            shape=(11, len(times), 12, 293, 333),
-            dtype=np.uint8,
-            chunks=(1, 16, 12, 293, 333),
-    )
-    ds.attrs['times'] = np.array(times, dtype=np.uint32)
+        print('Writing nonhrv data to hdf5 file')
+        for i, timeint in enumerate(tqdm(times)):
+            time = datetime.fromtimestamp(timeint)
+            d = dataset.nonhrv['data'].sel(time=slice(time, time + timedelta(minutes=55))).to_numpy()
+            # t, y, x, c -> c, t, y, x
+            ds[:, i] = (d * 255).astype(np.uint8).transpose(3, 0, 1, 2)
 
-    print('Writing nonhrv data to hdf5 file')
-    for i, timeint in enumerate(tqdm(times)):
-        time = datetime.fromtimestamp(timeint)
-        d = dataset.nonhrv['data'].sel(time=slice(time, time + timedelta(minutes=55))).to_numpy()
-        # t, y, x, c -> c, t, y, x
-        ds[:, i] = (d * 255).astype(np.uint8).transpose(3, 0, 1, 2)
-        # ds[i] = d
+    # WEATHER
+    if not skip_weather:
+        # based on bake index, save all weather data to a single hdf5 file
 
-    # based on bake index, save all weather data to a single hdf5 file
+        times = set()
+        for timeint, _, _, weather_flags in bake_index:
+            if not weather_flags.any():
+                continue
+            for j in range(-1, 5):
+                times.add(timeint + j * 3600)
+        times = sorted(list(times))
 
-    times = set()
-    for timeint, _, _, weather_flags in bake_index:
-        if not weather_flags.any():
-            continue
-        for j in range(-1, 5):
-            times.add(timeint + j * 3600)
-    times = sorted(list(times))
+        ds = h5file.create_dataset(
+                "weather",
+                shape=(38, len(times), 305, 289),
+                dtype=np.uint8,
+                chunks=(1, 32, 305, 289),
+        )
+        ds.attrs['times'] = np.array(times, dtype=np.uint32)
 
-    ds = h5file.create_dataset(
-            "weather",
-            shape=(38, len(times), 305, 289),
-            dtype=np.uint8,
-            chunks=(1, 32, 305, 289),
-    )
-    ds.attrs['times'] = np.array(times, dtype=np.uint32)
-
-    print('Writing weather data to hdf5 file')
-    for i, timeint in enumerate(tqdm(times)):
-        time = datetime.fromtimestamp(timeint)
-        nwp_data = dataset.weather.sel(time=time)
-        nwp_data = xr.concat([
-                (nwp_data[k] + WEATHER_RANGES[k][0]) / (WEATHER_RANGES[k][1] - WEATHER_RANGES[k][0])
-                for k in WEATHER_KEYS
-            ], dim="channel").values
-        # c, y, x -> c, y, x
-        ds[:, i] = (nwp_data * 255).astype(np.uint8)
-        # ds[i] = nwp_data.astype(np.float16).transpose(1, 2, 0)
+        print('Writing weather data to hdf5 file')
+        for i, timeint in enumerate(tqdm(times)):
+            time = datetime.fromtimestamp(timeint)
+            nwp_data = dataset.weather.sel(time=time)
+            nwp_data = xr.concat([
+                    (nwp_data[k] + WEATHER_RANGES[k][0]) / (WEATHER_RANGES[k][1] - WEATHER_RANGES[k][0])
+                    for k in WEATHER_KEYS
+                ], dim="channel").values
+            # c, y, x -> c, y, x
+            ds[:, i] = (nwp_data * 255).astype(np.uint8)
+            # ds[i] = nwp_data.astype(np.float16).transpose(1, 2, 0)
 
     h5file.close()
 
 
+
 if __name__ == "__main__":
-    # todo: add a dtype option
-    main(skip_bake_index=True)
+    # TODO: add a dtype option
+    # TODO  make this all configured with click or something
+    # TODO  play around with normalizations (log for some data, linear, etc)
+    main(
+        overwrite=False,
+        skip_bake_index=True,
+        skip_pv=False,
+        skip_nonhrv=True,
+        skip_weather=True,
+    )

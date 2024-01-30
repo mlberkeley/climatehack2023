@@ -47,11 +47,7 @@ class ClimatehackDataset(Dataset):
 
         # TODO replace with h5py... soon..
         start_time = datetime.now()
-        self.pv = pd.concat([
-                pd.read_parquet(f"{root_dir}/official_dataset/pv/{y}/{m}.parquet").drop("generation_wh", axis=1)
-                for y in (2020, 2021)
-                for m in range(1, 13)
-        ])
+        self.pv = pd.read_pickle(f"{root_dir}/pv.pkl")
         print(f"Loaded pv in {datetime.now() - start_time}")
 
         start_time = datetime.now()
