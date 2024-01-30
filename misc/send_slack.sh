@@ -18,4 +18,4 @@ curl -X POST -H 'Content-type: application/json' --data "{
 			}
 		}
     ]
-}" https://hooks.slack.com/services/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
+}" https://hooks.slack.com/services/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
