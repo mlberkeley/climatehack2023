@@ -322,6 +322,37 @@ class ResNet50(nn.Module):
         return x
 
 
+class CNNLSTM(nn.Module):
+    def __init__(self):
+        super(CNNLSTM, self).__init__()
+        self.resnet = _resnet(BasicBlock, [2, 2, 2, 2], None, True, inchannels=1)
+        self.resnetfc = nn.Linear(512 * BasicBlock.expansion + 1, 300)
+        self.lstm = nn.LSTM(input_size=300, hidden_size=256, num_layers=3)
+        self.fc1 = nn.Linear(256, 128)
+        self.fc2 = nn.Linear(128, 48)
+        self.r = nn.ReLU(inplace=True)
+
+    def forward(self, pv, site_features, nonhrv, weather):
+        # feature = self.resnet_backbone(nonhrv[:, 0])
+        # x = torch.concat((feature, pv), dim=-1)
+
+        # x = torch.sigmoid(self.linear1(x))
+
+        hidden = None
+        for t in range(nonhrv.size(1)):
+            with torch.no_grad():
+                x = self.resnet(nonhrv[:, 0, [t], :, :])
+                x = self.resnetfc(torch.concat((x, pv[:, [t]]), dim=-1))
+            out, hidden = self.lstm(x.unsqueeze(0), hidden)
+
+        # x = self.fc1(torch.concat([out[-1, :, :], pv], dim=-1))
+        x = self.fc1(out[-1, :, :])
+        x = self.r(x)
+        x = self.fc2(x)
+        x = torch.sigmoid(x)
+        return x
+
+
 class Model(nn.Module):
 
     def __init__(self) -> None:
