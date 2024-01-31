@@ -3,7 +3,7 @@ import torch.nn as nn
 from typing import Any, Callable, List, Optional, Type, Union
 from torch import Tensor
 from util import util
-#from submission.config import config
+import submission.keys as keys
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
@@ -270,6 +270,13 @@ def _resnet(
 
 class ResNet18(nn.Module):
 
+    REQUIRED_META = [
+    ]
+    REQUIRED_NONHRV = [
+        keys.NONHRV.VIS006,
+    ]
+    REQUIRED_WEATHER = []
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -279,7 +286,7 @@ class ResNet18(nn.Module):
         self.r = nn.ReLU(inplace=True)
 
     def forward(self, pv, site_features, nonhrv, weather):
-        feature = self.resnet_backbone(nonhrv[:, 0])
+        feature = self.resnet_backbone(nonhrv[keys.NONHRV.VIS006])
         x = torch.concat((feature, pv), dim=-1)
 
         x = self.r(self.linear1(x))
@@ -290,22 +297,39 @@ class ResNet18(nn.Module):
 
 class ResNet34(nn.Module):
 
+    REQUIRED_META = [
+    ]
+    REQUIRED_NONHRV = [
+        keys.NONHRV.VIS006,
+    ]
+    REQUIRED_WEATHER = []
+
     def __init__(self) -> None:
         super().__init__()
 
         self.resnet_backbone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
-        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
+        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 256)
+        self.linear2 = nn.Linear(256, 48)
+        self.r = nn.ReLU(inplace=True)
 
-    def forward(self, pv, hrv):
-        feature = self.resnet_backbone(hrv)
+    def forward(self, pv, site_features, nonhrv, weather):
+        feature = self.resnet_backbone(nonhrv[keys.NONHRV.VIS006])
         x = torch.concat((feature, pv), dim=-1)
 
-        x = torch.sigmoid(self.linear1(x))
+        x = self.r(self.linear1(x))
+        x = torch.sigmoid(self.linear2(x))
 
         return x
 
 
 class ResNet50(nn.Module):
+
+    REQUIRED_META = [
+    ]
+    REQUIRED_NONHRV = [
+        keys.NONHRV.VIS006,
+    ]
+    REQUIRED_WEATHER = []
 
     def __init__(self) -> None:
         super().__init__()
@@ -313,8 +337,8 @@ class ResNet50(nn.Module):
         self.resnet_backbone = _resnet(Bottleneck, [3, 4, 6, 3], None, True)
         self.linear1 = nn.Linear(512 * Bottleneck.expansion + 12, 48)
 
-    def forward(self, pv, hrv):
-        feature = self.resnet_backbone(hrv)
+    def forward(self, pv, meta, nonhrv, weather):
+        feature = self.resnet_backbone(nonhrv[keys.NONHRV.VIS006])
         x = torch.concat((feature, pv), dim=-1)
 
         x = torch.sigmoid(self.linear1(x))
@@ -362,19 +386,34 @@ class Model(nn.Module):
 
 class NonHRVMeta(nn.Module):
 
+    REQUIRED_META = [
+            keys.META.TIME,
+            keys.META.LATITUDE,
+            keys.META.LONGITUDE,
+            keys.META.ORIENTATION,
+            keys.META.TILT,
+            keys.META.KWP,
+    ]
+    REQUIRED_NONHRV = [
+            keys.NONHRV.VIS006,
+    ]
+    REQUIRED_WEATHER = []
+
     def __init__(self) -> None:
         super().__init__()
 
         self.resnet_backbone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
-        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12 + 5, 48 * 4)
+        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48 * 4)
         self.linear2 = nn.Linear(48 * 4, 48)
-        self.lin0 = nn.Linear(12 + 5, 12 + 5)
+        # WARN  was 17
+        self.lin0 = nn.Linear(12, 12)
         self.r = nn.ReLU(inplace=True)
 
-    def forward(self, pv, nonhrv, site_features):
-        feature = self.resnet_backbone(nonhrv)
-        site_features = util.site_normalize(site_features)
-        lin0_feat = self.r(self.lin0(torch.concat((pv, site_features), dim=-1)))
+    def forward(self, pv, meta, nonhrv, weather):
+        feature = self.resnet_backbone(nonhrv[keys.NONHRV.VIS006])
+        # TODO  use site features
+        site_features = util.site_normalize(meta)
+        lin0_feat = self.r(self.lin0(pv))
 
         x = torch.concat((feature, lin0_feat), dim=-1)
 

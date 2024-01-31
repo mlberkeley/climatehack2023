@@ -7,9 +7,10 @@ import h5py
 import torch
 
 from competition import BaseEvaluator
-from resnet import ResNet18 as Model
+from resnet import ResNet34 as Model
 import numpy as np
 from util import util
+import keys as keys
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,26 +38,43 @@ class Evaluator(BaseEvaluator):
         """
 
         with torch.inference_mode():
-            #for pv, hrv, weather in self.batch(features, variables=["pv", "nonhrv", "weather"], batch_size=32):
-            #for data_tuple in self.batch(features, variables=["pv", "alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "pv", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow"], batch_size=32):
-            for data_tuple in self.batch(features, variables=["pv", "nonhrv", "clch", "clcl", "clcm", "clct", "latitude", "longitude", "orientation", "tilt", "kwp"], batch_size=32):
-#"clch", "clcl", "clcm", "clct", "h_snow", "w_snow", "t_g", "t_2m", "tot_prec"], batch_size=32):
+            for data_batch in self.batch(
+                    features,
+                    variables=[
+                        "pv", "nonhrv",
+                    ] + [e.value for e in keys.META]
+                      + [e.value for e in keys.WEATHER],
+                    batch_size=32
+                ):
                 # Produce solar PV predictions for this batch
-                nonhrv = data_tuple[1]
-                nonhrv = np.stack([nonhrv[..., channel] for channel in [7, ]], axis = 1)
-                pv = data_tuple[0]
-                nwp = np.stack([x for x in data_tuple[2:6]], axis=1)
+                pv = data_batch['pv']
+                nonhrv = data_batch['nonhrv']
+                a = {
+                    e: torch.from_numpy(nonhrv[..., e.value]).to(device) for e in keys.NONHRV
+                }
 
-                #nwp = torch.concat([torch.from_numpy(x) for x in data_tuple[2:]], dim=1)
-                site_features = np.stack([x for x in data_tuple[-5:]], axis = -1)
-                site_features = util.site_normalize(torch.from_numpy(site_features).to(device))
+                site_features = {
+                    k : data_batch[k] for k in keys.META
+                }
+                weather_features = {
+                    k : data_batch[k] for k in keys.WEATHER
+                }
+                print(weather_features[keys.WEATHER.CLCH].min(), weather_features[keys.WEATHER.CLCH].max())
+                # normalization is currently done in model
+                # needs to stay in model so that we don't have to do it here..
+                # site_features = util.site_normalize(torch.from_numpy(site_features).to(device))
 
                 yield self.model(
                     torch.from_numpy(pv).to(device),
-                    site_features,
-                    torch.from_numpy(nonhrv).to(device),
-                    torch.from_numpy(nwp).to(device),
-
+                    {
+                        k : torch.from_numpy(v).to(device) for k, v in site_features.items()
+                    },
+                    {
+                        e: torch.from_numpy(nonhrv[..., e.value]).to(device) for e in keys.NONHRV
+                    },
+                    {
+                        k: torch.from_numpy(v).to(device) for k, v in weather_features.items()
+                    }
                 ).to("cpu")
 
 

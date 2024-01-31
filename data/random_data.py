@@ -8,13 +8,14 @@ from torch.utils.data import Dataset
 import pickle
 import h5py
 from util import util
+import submission.keys as keys
 
 
 # TODO possibly get rid of this shit
-WEATHER_KEYS = ["alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow", "ww", "z0"]
-#weather_keys = ["clch", "clcl", "clcm", "clct", "h_snow", "w_snow", "t_g", "t_2m", "tot_prec"]
-weather_keys = ["clch", "clcl", "clcm", "clct"]
-weather_inds = sorted([WEATHER_KEYS.index(key) for key in weather_keys])
+# WEATHER_KEYS = ["alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow", "ww", "z0"]
+# weather_keys = ["clch", "clcl", "clcm", "clct", "h_snow", "w_snow", "t_g", "t_2m", "tot_prec"]
+# weather_keys = ["clch", "clcl", "clcm", "clct"]
+# weather_inds = sorted([WEATHER_KEYS.index(key) for key in weather_keys])
 
 
 class ClimatehackDataset(Dataset):
@@ -23,13 +24,17 @@ class ClimatehackDataset(Dataset):
         start_date: datetime,
         end_date: datetime,
         root_dir: Path,
-        features: list[str], # TODO: make this an enum
+        meta_features: set[keys.META],
+        nonhrv_features: set[keys.NONHRV],
+        weather_features: set[keys.WEATHER],
         subset_size: int = 0,
     ):
         self.start_date = start_date
         self.end_date = end_date
         self.root_dir = root_dir
-        self.features = features
+        self.meta_features = meta_features
+        self.nonhrv_features = nonhrv_features
+        self.weather_features = weather_features
 
         self.meta = pd.read_csv("/data/climatehack/official_dataset/pv/meta.csv")
 
@@ -54,7 +59,7 @@ class ClimatehackDataset(Dataset):
         nonhrv_src = datafile['nonhrv']
         self.nonhrv, self.nonhrv_time_map = self._load_data(           #output dim (len(channels), end_i - start_i, *src.shape[2:])
                 nonhrv_src,
-                [7,],
+                [ch.value for ch in self.nonhrv_features],
                 start_date,
                 end_date,
         )
@@ -64,7 +69,7 @@ class ClimatehackDataset(Dataset):
         weather_src = datafile['weather']
         self.weather, self.weather_time_map = self._load_data(
                 weather_src,
-                weather_inds,
+                [ch.value for ch in self.weather_features],
                 start_date,
                 end_date,
         )
@@ -127,44 +132,55 @@ class ClimatehackDataset(Dataset):
         )
         pv_features = pv_features.xs(site).to_numpy().squeeze(-1)
         pv_targets = pv_targets.xs(site).to_numpy().squeeze(-1)
-        # pv_features = np.zeros((12,), dtype=np.float32)
-        # pv_targets = np.zeros((48,), dtype=np.float32)
 
         # nonhrv
         x, y = self.site_locations['nonhrv'][site]
         nonhrv_ind = self.nonhrv_time_map[timestamp]
-        nonhrv_features = self.nonhrv[
+        nonhrv_out_raw = self.nonhrv[
                 :,
                 nonhrv_ind,
                 :,
                 y - 64:y + 64,
                 x - 64:x + 64,
-                # 8
         ]
-        # nonhrv.shape = (num_hours, hour, y, x, channels) = (*, 12, 293, 333, 11)
-        # nonhrv_features.shape = (12, 128, 128)
-        # nonhrv_features = np.zeros((12, 128, 128))
-        nonhrv_features = nonhrv_features.astype(np.float32) / 255
+        # nonhrv.shape = (channels, num_hours, hour, y, x) = (11, *, 12, 293, 333)
+        # nonhrv_out_raw.shape = (12, 128, 128)
+        nonhrv_out_raw = nonhrv_out_raw.astype(np.float32) / 255
+        nonhrv_out = {
+            key: nonhrv_out_raw[i]
+            for i, key in enumerate(self.nonhrv_features)
+        }
 
         # weather
         x, y = self.site_locations['weather'][site]
         weather_ind = self.weather_time_map[timestamp]
-        weather_features = self.weather[
+        weather_out_raw = self.weather[
+                # [ch.value for ch in self.weather_features], # XXX
                 :,
                 weather_ind - 1:weather_ind + 5,
                 y - 64:y + 64,
                 x - 64:x + 64,
-                # weather_inds
         ]
-        # weather.shape = (num_hours, y, x, channels) = (*, 305, 289, 38)
-        # weather_features.shape = (6, 128, 128, ?)
-        # Andrew thinks shape is (len(weather_keys), 6, 128, 128)
-        #weather_features = weather_features.transpose((3, 0, 1, 2))
-        #weather_features = weather_features.reshape((len(weather_keys) * 6, 128, 128))
-        weather_features = weather_features.astype(np.float32) / 255
+        # weather.shape = (channels, num_hours, y, x) = (38, *, 305, 289)
+        # weather_out_raw.shape = (len(weather_keys), 6, 128, 128)
+        # weather_out_raw = weather_out_raw.transpose((0, 3, 1, 2))
+        # weather_out_raw = weather_out_raw.reshape((6 * len(self.weather_features), 128, 128))
+        weather_out_raw = weather_out_raw.astype(np.float32) / 255
+        weather_out = {
+            key: weather_out_raw[i]
+            for i, key in enumerate(self.weather_features)
+        }
 
+        # meta
         df = self.meta
         ss_id, lati, longi, _, orientation, tilt, kwp, _ = df.iloc[np.searchsorted(df['ss_id'].values, site)]
-        site_features = torch.tensor([lati, longi, orientation, tilt, kwp])
+        # DO NOT CHANGE THE ORDER OF THESE
+        site_features = [timestamp, lati, longi, orientation, tilt, kwp, ss_id]
+        meta_out = {
+            key: site_features[i]
+            for i, key in enumerate(self.meta_features)
+        }
 
-        return timestamp, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features
+
+        # return timestamp, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features
+        return pv_features, meta_out, nonhrv_out, weather_out, pv_targets

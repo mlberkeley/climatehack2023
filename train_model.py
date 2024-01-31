@@ -10,7 +10,8 @@ from torchinfo import summary
 from datetime import datetime
 
 from data.random_data import ClimatehackDataset
-from submission.resnet import ResNet18 as Model
+import submission.keys as keys
+from submission.resnet import ResNet34 as Model
 from submission.config import config
 from util import util
 from eval import eval
@@ -35,7 +36,7 @@ if device == "cpu":
         print("YOU ARE IN CPU MODE")
 
 
-summary(Model(), input_size=[(1, 12), (1, 5), (1, 1, 12, 128, 128), (1, 4, 6, 128, 128)], device=device)
+# summary(Model(), input_size=[(1, 12), (1, 5), (1, 1, 12, 128, 128), (1, 4, 6, 128, 128)], device=device)
 #predictions = model(
     #pv_features,
     #site_features,
@@ -44,6 +45,7 @@ summary(Model(), input_size=[(1, 12), (1, 5), (1, 1, 12, 128, 128), (1, 4, 6, 12
 #)
 
 #summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 5)], device=device)
+# TODO figure out summary if model works
 
 validation_loss, min_val_loss = 0, .15
 
@@ -58,7 +60,9 @@ dataset = ClimatehackDataset(
         start_date=config.data.train_start_date,
         end_date=config.data.train_end_date,
         root_dir=Path("/data/climatehack/"),
-        features=None,
+        meta_features=model.REQUIRED_META,
+        nonhrv_features=model.REQUIRED_NONHRV,
+        weather_features=model.REQUIRED_WEATHER,
         subset_size=config.data.train_subset_size,
 )
 
@@ -79,7 +83,9 @@ eval_dataset = ClimatehackDataset(
         start_date=config.data.eval_start_date,
         end_date=config.data.eval_end_date,
         root_dir=Path("/data/climatehack/"),
-        features=None,
+        meta_features=model.REQUIRED_META,
+        nonhrv_features=model.REQUIRED_NONHRV,
+        weather_features=model.REQUIRED_WEATHER,
         subset_size=config.data.eval_subset_size,
 )
 
@@ -115,19 +121,19 @@ for epoch in range(config.train.num_epochs):
     running_loss = 0.0
     count = 0
     last_time = datetime.now()
-    for i, (time, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features) in enumerate(dataloader):
+    for i, (pv_features, meta, nonhrv, weather, pv_targets) in enumerate(dataloader):
         optimizer.zero_grad()
-        pv_features, nonhrv_features, weather_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), weather_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
 
-        #print("nonhrv shapes: ", nonhrv_features.shape())
-        #print("weather shapes: ", weather_features.shape())
+        def dict_to_device(d):
+            return {k: v.to(device, dtype=torch.float) for k, v in d.items()}
+        meta_dev = dict_to_device(meta)
+        # print(meta[keys.META.PV].shape, meta_dev[keys.META.PV].shape)
+        nonhrv = dict_to_device(nonhrv)
+        weather = dict_to_device(weather)
+        pv_features = pv_features.to(device, dtype=torch.float)
+        pv_targets = pv_targets.to(device, dtype=torch.float)
 
-        predictions = model(
-            pv_features,
-            site_features,
-            nonhrv_features,
-            weather_features,
-        )
+        predictions = model(pv_features, meta, nonhrv, weather)
 
         loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
         loss.backward()
@@ -140,7 +146,7 @@ for epoch in range(config.train.num_epochs):
         count += size
 
         if i % 10 == 6:
-            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}, time: {time[0]}")
+            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}")
             os.makedirs("submission", exist_ok=True)
 
             #sample_pv, sample_vis = util.visualize_example(
