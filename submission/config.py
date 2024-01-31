@@ -7,7 +7,7 @@ config = edict()
 # TRAIN CONFIG
 config.train = edict()
 config.train.model_save_name = "pushtest.pt"
-config.train.batch_size = 64
+config.train.batch_size = 256
 config.train.num_epochs = 1000
 config.train.lr = 1e-3
 config.train.clip_grad_norm = 1

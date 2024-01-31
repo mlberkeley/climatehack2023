@@ -10,7 +10,7 @@ from torchinfo import summary
 from datetime import datetime
 
 from data.random_data import ClimatehackDataset
-from submission.resnet import MainModel as Model
+from submission.resnet import ResNet18 as Model
 from submission.config import config
 from util import util
 from eval import eval

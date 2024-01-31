@@ -274,8 +274,8 @@ class ResNet18(nn.Module):
         self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
         self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
 
-    def forward(self, pv, hrv):
-        feature = self.resnet_backbone(hrv)
+    def forward(self, pv, site_features, nonhrv, weather):
+        feature = self.resnet_backbone(nonhrv[:, 0])
         x = torch.concat((feature, pv), dim=-1)
 
         x = torch.sigmoid(self.linear1(x))

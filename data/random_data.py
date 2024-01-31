@@ -54,7 +54,7 @@ class ClimatehackDataset(Dataset):
         nonhrv_src = datafile['nonhrv']
         self.nonhrv, self.nonhrv_time_map = self._load_data(           #output dim (len(channels), end_i - start_i, *src.shape[2:])
                 nonhrv_src,
-                [1, 7, 8],
+                [7,],
                 start_date,
                 end_date,
         )
