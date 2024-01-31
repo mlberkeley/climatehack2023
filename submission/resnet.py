@@ -136,8 +136,8 @@ class ResNet(nn.Module):
         self,
         block: Type[Union[BasicBlock, Bottleneck]],
         layers: List[int],
-        num_classes: int = 1000,
         zero_init_residual: bool = False,
+        inchannels: int = 3,
         groups: int = 1,
         width_per_group: int = 64,
         replace_stride_with_dilation: Optional[List[bool]] = None,
@@ -159,9 +159,10 @@ class ResNet(nn.Module):
                 "replace_stride_with_dilation should be None "
                 f"or a 3-element tuple, got {replace_stride_with_dilation}"
             )
+        self.inchannels = inchannels
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(12, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = nn.Conv2d(self.inchannels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -255,10 +256,11 @@ def _resnet(
     layers: List[int],
     weights: Optional,
     progress: bool,
+    inchannels: int = 12,
     **kwargs: Any,
 ) -> ResNet:
 
-    model = ResNet(block, layers, **kwargs)
+    model = ResNet(block, layers, inchannels=inchannels, **kwargs)
 
     if weights is not None:
         model.load_state_dict(weights.get_state_dict(progress=progress, check_hash=True))
@@ -272,13 +274,16 @@ class ResNet18(nn.Module):
         super().__init__()
 
         self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True)
-        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 48)
+        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12, 256)
+        self.linear2 = nn.Linear(256, 48)
+        self.r = nn.ReLU(inplace=True)
 
     def forward(self, pv, site_features, nonhrv, weather):
         feature = self.resnet_backbone(nonhrv[:, 0])
         x = torch.concat((feature, pv), dim=-1)
 
-        x = torch.sigmoid(self.linear1(x))
+        x = self.r(self.linear1(x))
+        x = torch.sigmoid(self.linear2(x))
 
         return x
 
