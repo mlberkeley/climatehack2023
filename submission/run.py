@@ -22,6 +22,7 @@ class Evaluator(BaseEvaluator):
 
         self.model = Model().to(device)
         self.model.load_state_dict(torch.load("pushtest.pt", map_location=device))
+        # self.model = torch.load("pushtest.pt", map_location=device)
         self.model.eval()
 
     def predict(self, features: h5py.File):
@@ -42,8 +43,8 @@ class Evaluator(BaseEvaluator):
                     features,
                     variables=[
                         "pv", "nonhrv",
-                    ] + [e.value for e in keys.META]
-                      + [e.value for e in keys.WEATHER],
+                    ] + [e.name.lower() for e in keys.META]
+                      + [e.name.lower() for e in keys.WEATHER],
                     batch_size=32
                 ):
                 # Produce solar PV predictions for this batch
@@ -54,12 +55,13 @@ class Evaluator(BaseEvaluator):
                 }
 
                 site_features = {
-                    k : data_batch[k] for k in keys.META
+                    k : data_batch[k.name.lower()] for k in keys.META
                 }
                 weather_features = {
-                    k : data_batch[k] for k in keys.WEATHER
+                    k : data_batch[k.name.lower()] for k in keys.WEATHER
                 }
-                print(weather_features[keys.WEATHER.CLCH].min(), weather_features[keys.WEATHER.CLCH].max())
+                for k in keys.WEATHER:
+                    weather_features[k] = (weather_features[k] - keys.WEATHER_RANGES[k][0]) / (keys.WEATHER_RANGES[k][1] - keys.WEATHER_RANGES[k][0])
                 # normalization is currently done in model
                 # needs to stay in model so that we don't have to do it here..
                 # site_features = util.site_normalize(torch.from_numpy(site_features).to(device))

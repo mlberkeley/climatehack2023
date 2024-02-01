@@ -1,13 +1,13 @@
-from enum import Enum, IntEnum, StrEnum, auto
+from enum import Enum, IntEnum
 
 
-class META(StrEnum):
-    TIME = auto()
-    LATITUDE = auto()
-    LONGITUDE = auto()
-    ORIENTATION = auto()
-    TILT = auto()
-    KWP = auto()
+class META(Enum):
+    TIME = 0
+    LATITUDE = 1
+    LONGITUDE = 2
+    ORIENTATION = 3
+    TILT = 4
+    KWP = 5
 
 
 class NONHRV(IntEnum):
@@ -24,61 +24,61 @@ class NONHRV(IntEnum):
     WV_073 = 10
 
 
-class WEATHER(StrEnum):
-    ALB_RAD = auto()
-    ASWDIFD_S = auto()
-    ASWDIR_S = auto()
-    CAPE_CON = auto()
-    CLCH = auto()
-    CLCL = auto()
-    CLCM = auto()
-    CLCT = auto()
-    H_SNOW = auto()
-    OMEGA_1000 = auto()
-    OMEGA_700 = auto()
-    OMEGA_850 = auto()
-    OMEGA_950 = auto()
-    PMSL = auto()
-    RELHUM_2M = auto()
-    RUNOFF_G = auto()
-    RUNOFF_S = auto()
-    T_2M = auto()
-    T_500 = auto()
-    T_850 = auto()
-    T_950 = auto()
-    T_G = auto()
-    TD_2M = auto()
-    TOT_PREC = auto()
-    U_10M = auto()
-    U_50 = auto()
-    U_500 = auto()
-    U_850 = auto()
-    U_950 = auto()
-    V_10M = auto()
-    V_50 = auto()
-    V_500 = auto()
-    V_850 = auto()
-    V_950 = auto()
-    VMAX_10M = auto()
-    W_SNOW = auto()
-    WW = auto()
-    Z0 = auto()
+class WEATHER(Enum):
+    ALB_RAD = 1
+    ASWDIFD_S = 2
+    ASWDIR_S = 3
+    CAPE_CON = 4
+    CLCH = 5
+    CLCL = 6
+    CLCM = 7
+    CLCT = 8
+    H_SNOW = 9
+    OMEGA_1000 = 10
+    OMEGA_700 = 11
+    OMEGA_850 = 12
+    OMEGA_950 = 13
+    PMSL = 14
+    RELHUM_2M = 15
+    RUNOFF_G = 16
+    RUNOFF_S = 17
+    T_2M = 18
+    T_500 = 19
+    T_850 = 20
+    T_950 = 21
+    T_G = 22
+    TD_2M = 23
+    TOT_PREC = 24
+    U_10M = 25
+    U_50 = 26
+    U_500 = 27
+    U_850 = 28
+    U_950 = 29
+    V_10M = 30
+    V_50 = 31
+    V_500 = 32
+    V_850 = 33
+    V_950 = 34
+    VMAX_10M = 35
+    W_SNOW = 36
+    WW = 37
+    Z0 = 38
 
 
-class AIR_QUALITY(StrEnum):
-    CO_CONC = auto()
-    DUST = auto()
-    NH3_CONC = auto()
-    NMVOC_CONC = auto()
-    NO2_CONC = auto()
-    NO_CONC = auto()
-    O3_CONC = auto()
-    PANS_CONC = auto()
-    PM10_CONC = auto()
-    PM2P5_CONC = auto()
-    PMWF_CONC = auto()
-    SIA_CONC = auto()
-    SO2_CONC = auto()
+class AIR_QUALITY(Enum):
+    CO_CONC = 0
+    DUST = 1
+    NH3_CONC = 2
+    NMVOC_CONC = 3
+    NO2_CONC = 4
+    NO_CONC = 5
+    O3_CONC = 6
+    PANS_CONC = 7
+    PM10_CONC = 8
+    PM2P5_CONC = 9
+    PMWF_CONC = 10
+    SIA_CONC = 11
+    SO2_CONC = 12
 
 
 WEATHER_RANGES = {
@@ -98,7 +98,7 @@ WEATHER_RANGES = {
         WEATHER.PMSL: (93928.17, 105314.26),
         WEATHER.RELHUM_2M: (0, 100),
         WEATHER.RUNOFF_G: (-0.2157, 153.75),
-        WEATHER.RUNOFF_S: (-1.979E-05, 123.94),
+        WEATHER.RUNOFF_S: (0, 123.94),
         WEATHER.T_2M: (248.9, 313.75),
         WEATHER.T_500: (228.4, 269.75),
         WEATHER.T_850: (250.5, 299.75),
@@ -119,5 +119,5 @@ WEATHER_RANGES = {
         WEATHER.VMAX_10M: (0.05722, 65.062),
         WEATHER.W_SNOW: (0.0, 1422.0),
         WEATHER.WW: (0, 100),
-        WEATHER.Z0: (2.95e-05, 1.0)
+        WEATHER.Z0: (0, 1.0)
 }

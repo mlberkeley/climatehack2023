@@ -3,7 +3,7 @@ import torch.nn as nn
 from typing import Any, Callable, List, Optional, Type, Union
 from torch import Tensor
 from util import util
-import submission.keys as keys
+import keys as keys
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
