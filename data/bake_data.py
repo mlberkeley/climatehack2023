@@ -14,6 +14,7 @@ import pickle
 import h5py
 from tqdm import tqdm
 from submission.keys import WEATHER_RANGES
+from loguru import logger
 
 
 BAKE_START = datetime(2020, 1, 1)
@@ -144,7 +145,7 @@ def main(
     ):
 
     # load pv, weather, nonhrv data
-    print('Loading data')
+    logger.info('Loading data')
     dataset = BakerDataset()
     if overwrite:
         h5file = h5py.File("data.h5", "w")
@@ -152,7 +153,7 @@ def main(
         h5file = h5py.File("data.h5", "a")
 
     # BAKE INDEX
-    print('Creating/Loading bake index')
+    logger.info('Creating/Loading bake index')
     if not skip_bake_index:
         # iterate over dates and cosntruct bake index
         start = datetime.now()
@@ -160,7 +161,7 @@ def main(
 
         for i, entry in enumerate(iter(dataset)):
             if i % 10000 == 0:
-                print(i)
+                logger.debug(i)
             bake_index.append(entry)
 
         bake_index_dt = np.dtype([
@@ -182,7 +183,7 @@ def main(
         )
         ds[:] = bake_index
 
-        print(f'Bake index created in: {end - start}')
+        logger.info(f'Bake index created in: {end - start}')
     else:
         # bake_index = np.load("bake_index.npy")
         bake_index = h5file['bake_index'][:]
@@ -209,7 +210,7 @@ def main(
         )
         ds.attrs['times'] = np.array(times, dtype=np.uint32)
 
-        print('Writing nonhrv data to hdf5 file')
+        logger.info('Writing nonhrv data to hdf5 file')
         for i, timeint in enumerate(tqdm(times)):
             time = datetime.fromtimestamp(timeint)
             d = dataset.nonhrv['data'].sel(time=slice(time, time + timedelta(minutes=55))).to_numpy()
@@ -238,7 +239,7 @@ def main(
         )
         ds.attrs['times'] = np.array(times, dtype=np.uint32)
 
-        print('Writing weather data to hdf5 file')
+        logger.info('Writing weather data to hdf5 file')
         for i, timeint in enumerate(tqdm(times)):
             time = datetime.fromtimestamp(timeint)
             nwp_data = dataset.weather.sel(time=time)

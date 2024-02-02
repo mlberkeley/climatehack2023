@@ -1,4 +1,5 @@
 import os
+import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,7 +17,14 @@ from submission.config import config
 from util import util
 from eval import eval
 from pathlib import Path
+from loguru import logger
 
+logger.remove(0)
+logger.add(sys.stderr, format=\
+        "<green>{time:HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{file}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+)
 
 # INFO: setup
 parser = argparse.ArgumentParser()
@@ -31,9 +39,10 @@ torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 if device == "cpu":
-    print("====================")
-    for i in range(10):
-        print("YOU ARE IN CPU MODE")
+    logger.critical('CPU mode is not supported (well it is but it is very slow)')
+    exit()
+if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+    logger.warning('CUDA_VISIBLE_DEVICES not set, ensure you are using a free GPU')
 
 
 summary(Model(), input_data=(
@@ -62,7 +71,7 @@ dataset = ClimatehackDataset(
         subset_size=config.data.train_subset_size,
 )
 
-print(f'Train dataset length: {len(dataset):,}, loaded in {datetime.now() - start}')
+logger.info(f'Train dataset length: {len(dataset):,}, loaded in {datetime.now() - start}')
 
 dataloader = DataLoader(
         dataset,
@@ -85,7 +94,7 @@ eval_dataset = ClimatehackDataset(
         subset_size=config.data.eval_subset_size,
 )
 
-print(f'Eval dataset length: {len(eval_dataset):,}, loaded in {datetime.now() - start}')
+logger.info(f'Eval dataset length: {len(eval_dataset):,}, loaded in {datetime.now() - start}')
 
 eval_dataloader = DataLoader(
         eval_dataset,
@@ -107,7 +116,7 @@ wandb.init(
 
 # INFO: train
 for epoch in range(config.train.num_epochs):
-    print(f"[{datetime.now()}]: Epoch {epoch + 1}")
+    logger.info(f"[{datetime.now()}]: Epoch {epoch + 1}")
     model.train()
 
     running_loss = 0.0
@@ -133,7 +142,7 @@ for epoch in range(config.train.num_epochs):
         count += size
 
         if i % 10 == 6:
-            print(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}")
+            logger.info(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}")
             os.makedirs("submission", exist_ok=True)
 
             #sample_pv, sample_vis = util.visualize_example(
@@ -142,9 +151,9 @@ for epoch in range(config.train.num_epochs):
 
             if i % 140 == 6:
                 st = datetime.now()
-                print(f"validating: start {datetime.now()}")
+                logger.info(f"validating: start {datetime.now()}")
                 validation_loss = eval(eval_dataloader, model)
-                print(f"loss: {validation_loss}, validation time {datetime.now() - st}")
+                logger.info(f"loss: {validation_loss}, validation time {datetime.now() - st}")
 
                 torch.save(model.state_dict(), f"submission/{config.train.model_save_name}")
                 if validation_loss < min_val_loss:
@@ -158,7 +167,7 @@ for epoch in range(config.train.num_epochs):
                 #"sample_vis": sample_vis,
             })
 
-    print(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
+    logger.info(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
 
 
 wandb.finish()

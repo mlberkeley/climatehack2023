@@ -9,6 +9,7 @@ import pickle
 import h5py
 from util import util
 import submission.keys as keys
+from loguru import logger
 
 
 class ClimatehackDataset(Dataset):
@@ -41,11 +42,11 @@ class ClimatehackDataset(Dataset):
             rng = np.random.default_rng(21)
             rng.shuffle(self.bake_index)
             self.bake_index = self.bake_index[:subset_size]
-        print(f"Loaded bake index in {datetime.now() - start_time}")
+        logger.debug(f"Loaded bake index in {datetime.now() - start_time}")
 
         start_time = datetime.now()
         self.pv = pd.read_pickle(f"{root_dir}/pv.pkl")
-        print(f"Loaded pv in {datetime.now() - start_time}")
+        logger.debug(f"Loaded pv in {datetime.now() - start_time}")
 
         start_time = datetime.now()
         nonhrv_src = datafile['nonhrv']
@@ -55,7 +56,7 @@ class ClimatehackDataset(Dataset):
                 start_date,
                 end_date,
         )
-        print(f"Loaded nonhrv in {datetime.now() - start_time}")
+        logger.debug(f"Loaded nonhrv in {datetime.now() - start_time}")
 
         start_time = datetime.now()
         weather_src = datafile['weather']
@@ -65,7 +66,7 @@ class ClimatehackDataset(Dataset):
                 start_date,
                 end_date,
         )
-        print(f"Loaded weather in {datetime.now() - start_time}")
+        logger.debug(f"Loaded weather in {datetime.now() - start_time}")
 
         # TODO move this to data.h5
         with open("indices.json") as f:
