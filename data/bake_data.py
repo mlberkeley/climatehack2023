@@ -1,25 +1,25 @@
+import sys
+
+sys.path.append('./')
+
 import numpy as np
 from torch.utils.data import IterableDataset
 from datetime import datetime, time, timedelta
 from pathlib import Path
 import pandas as pd
-#import modin.pandas as pd
 import xarray as xr
 from ocf_blosc2 import Blosc2
 import json
 import pickle
 import h5py
 from tqdm import tqdm
+from submission.keys import WEATHER_RANGES
 
 
 BAKE_START = datetime(2020, 1, 1)
 BAKE_END = datetime(2021, 12, 31)
-# BAKE_END = datetime(2021, 12, 31)
 
 WEATHER_KEYS = ["alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow", "ww", "z0"]
-
-WEATHER_RANGES = {'alb_rad': (0, 100), 'aswdifd_s': (0.0, 544.5), 'aswdir_s': (0.0, 864.0), 'cape_con': (0.0, 2244.0), 'clch': (0.0, 100.0), 'clcl': (0.0, 100.0), 'clcm': (0.0, 100.0), 'clct': (0.0, 100.0), 'h_snow': (0.0, 4.3086), 'omega_1000': (-10.32, 13.172), 'omega_700': (-40.28, 26.891), 'omega_850': (-33.34, 22.797), 'omega_950': (-16.77, 14.117), 'pmsl': (93928.17, 105314.26), 'relhum_2m': (0, 100), 'runoff_g': (-0.2157, 153.75), 'runoff_s': (-1.979e-05, 123.94), 't_2m': (248.9, 313.75), 't_500': (228.4, 269.75), 't_850': (250.5, 299.75), 't_950': (254.1, 309.5), 't_g': (235.8, 322.5), 'td_2m': (233.5, 297.75), 'tot_prec': (0.0, 150.75), 'u_10m': (-27.22, 29.094), 'u_50': (-28.66, 73.375), 'u_500': (-49.12, 79.5), 'u_850': (-46.31, 47.188), 'u_950': (-37.47, 39.812), 'v_10m': (-26.95, 28.469), 'v_50': (-56.91, 51.812), 'v_500': (-59.09, 60.844), 'v_850': (-37.09, 48.625), 'v_950': (-39.81, 42.469), 'vmax_10m': (0.05722, 65.062), 'w_snow': (0.0, 1422.0), 'ww': (0, 100), 'z0': (2.95e-05, 1.0)}
-
 
 class BakerDataset(IterableDataset):
     def __init__(self):
@@ -199,6 +199,8 @@ def main(
         times = set(bake_index['time'][bake_index['nonhrv_flags'].any(axis=1)])
         times = sorted(list(times))
 
+        if 'nonhrv' in h5file:
+            del h5file['nonhrv']
         ds = h5file.create_dataset(
                 "nonhrv",
                 shape=(11, len(times), 12, 293, 333),
@@ -226,6 +228,8 @@ def main(
                 times.add(timeint + j * 3600)
         times = sorted(list(times))
 
+        if 'weather' in h5file:
+            del h5file['weather']
         ds = h5file.create_dataset(
                 "weather",
                 shape=(38, len(times), 305, 289),
@@ -239,7 +243,7 @@ def main(
             time = datetime.fromtimestamp(timeint)
             nwp_data = dataset.weather.sel(time=time)
             nwp_data = xr.concat([
-                    (nwp_data[k] + WEATHER_RANGES[k][0]) / (WEATHER_RANGES[k][1] - WEATHER_RANGES[k][0])
+                    (nwp_data[k] - WEATHER_RANGES[k][0]) / (WEATHER_RANGES[k][1] - WEATHER_RANGES[k][0])
                     for k in WEATHER_KEYS
                 ], dim="channel").values
             # c, y, x -> c, y, x
@@ -257,7 +261,7 @@ if __name__ == "__main__":
     main(
         overwrite=False,
         skip_bake_index=True,
-        skip_pv=False,
+        skip_pv=True,
         skip_nonhrv=True,
         skip_weather=True,
     )

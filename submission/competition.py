@@ -45,9 +45,8 @@ class BaseEvaluator:
         for variable in variables:
             assert variable in features
 
-        datasets = {variable: features[variable] for variable in variables}
-        for i in range(0, len(datasets[variables[0]]), batch_size):  # type: ignore
-            yield [datasets[variable][i : i + batch_size] for variable in variables]  # type: ignore
+        for i in range(0, len(features[variables[0]]), batch_size):  # type: ignore
+            yield {variable: features[variable][i : i + batch_size] for variable in variables}  # type: ignore
 
     def evaluate(self) -> None:
         """Communicates with and handles your evaluation on the DOXA AI platform."""
