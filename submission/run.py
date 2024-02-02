@@ -22,7 +22,6 @@ class Evaluator(BaseEvaluator):
 
         self.model = Model().to(device)
         self.model.load_state_dict(torch.load("pushtest.pt", map_location=device))
-        # self.model = torch.load("pushtest.pt", map_location=device)
         self.model.eval()
 
     def predict(self, features: h5py.File):
@@ -48,36 +47,29 @@ class Evaluator(BaseEvaluator):
                     batch_size=32
                 ):
                 # Produce solar PV predictions for this batch
-                pv = data_batch['pv']
+                pv = torch.from_numpy(data_batch['pv']).to(device)
                 nonhrv = data_batch['nonhrv']
-                a = {
-                    e: torch.from_numpy(nonhrv[..., e.value]).to(device) for e in keys.NONHRV
+                meta_features = {
+                        k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
+                        for k in keys.META
                 }
-
-                site_features = {
-                    k : data_batch[k.name.lower()] for k in keys.META
+                nonhrv_features = {
+                        k: torch.from_numpy(nonhrv[..., k.value]).to(device)
+                        for k in keys.NONHRV
                 }
                 weather_features = {
-                    k : data_batch[k.name.lower()] for k in keys.WEATHER
+                        k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
+                        for k in keys.WEATHER
                 }
+
+                # INFO  this is ugly; but that's okay
                 for k in keys.WEATHER:
                     weather_features[k] = (weather_features[k] - keys.WEATHER_RANGES[k][0]) / (keys.WEATHER_RANGES[k][1] - keys.WEATHER_RANGES[k][0])
-                # normalization is currently done in model
-                # needs to stay in model so that we don't have to do it here..
+                # this normalization is currently done in model
+                # needs to stay in model so that we don't have to do it here.. perhaps?
                 # site_features = util.site_normalize(torch.from_numpy(site_features).to(device))
 
-                yield self.model(
-                    torch.from_numpy(pv).to(device),
-                    {
-                        k : torch.from_numpy(v).to(device) for k, v in site_features.items()
-                    },
-                    {
-                        e: torch.from_numpy(nonhrv[..., e.value]).to(device) for e in keys.NONHRV
-                    },
-                    {
-                        k: torch.from_numpy(v).to(device) for k, v in weather_features.items()
-                    }
-                ).to("cpu")
+                yield self.model(pv, meta_features, nonhrv_features, weather_features).cpu()
 
 
 if __name__ == "__main__":

@@ -1,3 +1,8 @@
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
+
 import torch
 import torch.nn as nn
 from typing import Any, Callable, List, Optional, Type, Union

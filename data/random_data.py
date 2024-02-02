@@ -11,13 +11,6 @@ from util import util
 import submission.keys as keys
 
 
-# TODO possibly get rid of this shit
-# WEATHER_KEYS = ["alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow", "ww", "z0"]
-# weather_keys = ["clch", "clcl", "clcm", "clct", "h_snow", "w_snow", "t_g", "t_2m", "tot_prec"]
-# weather_keys = ["clch", "clcl", "clcm", "clct"]
-# weather_inds = sorted([WEATHER_KEYS.index(key) for key in weather_keys])
-
-
 class ClimatehackDataset(Dataset):
 
     def __init__(self,
@@ -50,7 +43,6 @@ class ClimatehackDataset(Dataset):
             self.bake_index = self.bake_index[:subset_size]
         print(f"Loaded bake index in {datetime.now() - start_time}")
 
-        # TODO replace with h5py... soon..
         start_time = datetime.now()
         self.pv = pd.read_pickle(f"{root_dir}/pv.pkl")
         print(f"Loaded pv in {datetime.now() - start_time}")
@@ -96,7 +88,7 @@ class ClimatehackDataset(Dataset):
                 dtype=np.uint8
         )
         # this does: out = src[selected_channels, selected_times] but faster
-        # (unless selected channels are consequtive, but let's ignore that tiny detail)
+        # (unless selected channels are consequtive then it's not faster, but let's ignore that tiny detail)
         for i, ch in enumerate(channels):
             src.read_direct(output[i], np.s_[ch, start_i:end_i])
 
@@ -163,8 +155,6 @@ class ClimatehackDataset(Dataset):
         ]
         # weather.shape = (channels, num_hours, y, x) = (38, *, 305, 289)
         # weather_out_raw.shape = (len(weather_keys), 6, 128, 128)
-        # weather_out_raw = weather_out_raw.transpose((0, 3, 1, 2))
-        # weather_out_raw = weather_out_raw.reshape((6 * len(self.weather_features), 128, 128))
         weather_out_raw = weather_out_raw.astype(np.float32) / 255
         weather_out = {
             key: weather_out_raw[i]
@@ -181,6 +171,4 @@ class ClimatehackDataset(Dataset):
             for i, key in enumerate(self.meta_features)
         }
 
-
-        # return timestamp, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features
         return pv_features, meta_out, nonhrv_out, weather_out, pv_targets

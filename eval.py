@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from submission.config import config
+from util import util
 
 
 def eval(dataloader, model, criterion=nn.L1Loss()):
@@ -12,19 +13,11 @@ def eval(dataloader, model, criterion=nn.L1Loss()):
 
     with torch.no_grad():
         for i, (pv_features, meta, nonhrv, weather, pv_targets) in enumerate(dataloader):
-            # pv_features, nonhrv_features, nwp_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), nwp_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
-            meta = {k: v.to(device, dtype=torch.float) for k, v in meta.items()}
-            nonhrv = {k: v.to(device, dtype=torch.float) for k, v in nonhrv.items()}
-            weather = {k: v.to(device, dtype=torch.float) for k, v in weather.items()}
+            meta, nonhrv, weather = util.dict_to_device(meta), util.dict_to_device(nonhrv), util.dict_to_device(weather)
             pv_features = pv_features.to(device, dtype=torch.float)
             pv_targets = pv_targets.to(device, dtype=torch.float)
 
-            predictions = model(
-                # pv_features,
-                # nonhrv_features,
-                # site_features
-                pv_features, meta, nonhrv, weather
-            )
+            predictions = model(pv_features, meta, nonhrv, weather)
 
             loss = criterion(predictions, pv_targets)
 

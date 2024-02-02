@@ -36,16 +36,12 @@ if device == "cpu":
         print("YOU ARE IN CPU MODE")
 
 
-# summary(Model(), input_size=[(1, 12), (1, 5), (1, 1, 12, 128, 128), (1, 4, 6, 128, 128)], device=device)
-#predictions = model(
-    #pv_features,
-    #site_features,
-    #nonhrv_features,
-    #weather_features,
-#)
-
-#summary(Model(), input_size=[(1, 12), (1, 12, 128, 128), (1, 5)], device=device)
-# TODO figure out summary if model works
+summary(Model(), input_data=(
+    torch.zeros((1, 12)),
+    {k: torch.zeros((1, 1)) for k in keys.META},
+    {k: torch.zeros((1, 12, 128, 128)) for k in keys.NONHRV},
+    {k: torch.zeros((1, 6, 128, 128)) for k in keys.WEATHER},
+), device=device)
 
 validation_loss, min_val_loss = 0, .15
 
@@ -98,10 +94,6 @@ eval_dataloader = DataLoader(
         num_workers=config.data.num_workers,
         shuffle=False
 )
-#for i, (time, site, pv_features, pv_targets, nonhrv_features, weather_features, site_features) in enumerate(dataloader):
-        #optimizer.zero_grad()
-        #pv_features, nonhrv_features, weather_features, pv_targets, site_features = pv_features.to(device, dtype=torch.float), nonhrv_features.to(device, dtype=torch.float), weather_features.to(device, dtype=torch.float), pv_targets.to(device, dtype=torch.float), site_features.to(device, dtype=torch.float)
-        #print(nonhrv_features.shape)
 
 wandb.init(
     entity="mlatberkeley",
@@ -124,12 +116,7 @@ for epoch in range(config.train.num_epochs):
     for i, (pv_features, meta, nonhrv, weather, pv_targets) in enumerate(dataloader):
         optimizer.zero_grad()
 
-        def dict_to_device(d):
-            return {k: v.to(device, dtype=torch.float) for k, v in d.items()}
-        meta_dev = dict_to_device(meta)
-        # print(meta[keys.META.PV].shape, meta_dev[keys.META.PV].shape)
-        nonhrv = dict_to_device(nonhrv)
-        weather = dict_to_device(weather)
+        meta, nonhrv, weather = util.dict_to_device(meta), util.dict_to_device(nonhrv), util.dict_to_device(weather)
         pv_features = pv_features.to(device, dtype=torch.float)
         pv_targets = pv_targets.to(device, dtype=torch.float)
 

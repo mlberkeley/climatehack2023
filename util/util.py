@@ -53,3 +53,6 @@ def site_normalize(vals):
     #assert val_type in norms, "val_type error, not in norms, can't be normalized"
     #mean, std = norms[val_type]
     #return (val * std) + mean
+
+def dict_to_device(d):
+    return {k: v.to(device, dtype=torch.float) for k, v in d.items()}
