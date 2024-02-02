@@ -4,6 +4,7 @@ import wandb
 import torch
 import submission.keys as keys
 
+# TODO  have one util file... this is a mess
 
 def to_np(a):
     return a.detach().cpu().numpy()
