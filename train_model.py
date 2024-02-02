@@ -11,7 +11,7 @@ from datetime import datetime
 
 from data.random_data import ClimatehackDataset
 import submission.keys as keys
-from submission.resnet import ResNet34 as Model
+from submission.resnet import NonHRVMeta as Model
 from submission.config import config
 from util import util
 from eval import eval
@@ -38,7 +38,7 @@ if device == "cpu":
 
 summary(Model(), input_data=(
     torch.zeros((1, 12)),
-    {k: torch.zeros((1, 1)) for k in keys.META},
+    {k: torch.zeros((1, )) for k in keys.META},
     {k: torch.zeros((1, 12, 128, 128)) for k in keys.NONHRV},
     {k: torch.zeros((1, 6, 128, 128)) for k in keys.WEATHER},
 ), device=device)

@@ -408,16 +408,24 @@ class NonHRVMeta(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
-        self.resnet_backbone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
+        self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True, inchannels=12)
         self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12 + 5, 48 * 4)
         self.linear2 = nn.Linear(48 * 4, 48)
         self.lin0 = nn.Linear(12 + 5, 12 + 5)
         self.r = nn.ReLU(inplace=True)
 
-    def forward(self, pv, nonhrv, site_features):
-        feature = self.resnet_backbone(nonhrv)
-        site_features = util.site_normalize(site_features)
-        lin0_feat = self.r(self.lin0(torch.concat((pv, site_features), dim=-1)))
+    def forward(self, pv, meta, nonhrv, weather):
+        feature = self.resnet_backbone(nonhrv[keys.NONHRV.VIS006])
+        meta = util.site_normalize(meta)
+        # print(meta)
+        lin0_feat = self.r(self.lin0(torch.concat((
+            pv,
+            meta[keys.META.LATITUDE].unsqueeze(-1),
+            meta[keys.META.LONGITUDE].unsqueeze(-1),
+            meta[keys.META.ORIENTATION].unsqueeze(-1),
+            meta[keys.META.TILT].unsqueeze(-1),
+            meta[keys.META.KWP].unsqueeze(-1),
+        ), dim=-1)))
 
         x = torch.concat((feature, lin0_feat), dim=-1)
 

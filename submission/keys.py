@@ -1,84 +1,87 @@
-from enum import Enum, IntEnum
+from enum import IntEnum, auto, unique
 
 
-class META(Enum):
-    TIME = 0
-    LATITUDE = 1
-    LONGITUDE = 2
-    ORIENTATION = 3
-    TILT = 4
-    KWP = 5
+@unique
+class META(IntEnum):
+    TIME = auto()
+    LATITUDE = auto()
+    LONGITUDE = auto()
+    ORIENTATION = auto()
+    TILT = auto()
+    KWP = auto()
 
 
+@unique
 class NONHRV(IntEnum):
-    IR_016 = 0
-    IR_039 = 1
-    IR_087 = 2
-    IR_097 = 3
-    IR_108 = 4
-    IR_120 = 5
-    IR_134 = 6
-    VIS006 = 7
-    VIS008 = 8
-    WV_062 = 9
-    WV_073 = 10
+    IR_016 = auto()
+    IR_039 = auto()
+    IR_087 = auto()
+    IR_097 = auto()
+    IR_108 = auto()
+    IR_120 = auto()
+    IR_134 = auto()
+    VIS006 = auto()
+    VIS008 = auto()
+    WV_062 = auto()
+    WV_073 = auto()
 
 
-class WEATHER(Enum):
-    ALB_RAD = 1
-    ASWDIFD_S = 2
-    ASWDIR_S = 3
-    CAPE_CON = 4
-    CLCH = 5
-    CLCL = 6
-    CLCM = 7
-    CLCT = 8
-    H_SNOW = 9
-    OMEGA_1000 = 10
-    OMEGA_700 = 11
-    OMEGA_850 = 12
-    OMEGA_950 = 13
-    PMSL = 14
-    RELHUM_2M = 15
-    RUNOFF_G = 16
-    RUNOFF_S = 17
-    T_2M = 18
-    T_500 = 19
-    T_850 = 20
-    T_950 = 21
-    T_G = 22
-    TD_2M = 23
-    TOT_PREC = 24
-    U_10M = 25
-    U_50 = 26
-    U_500 = 27
-    U_850 = 28
-    U_950 = 29
-    V_10M = 30
-    V_50 = 31
-    V_500 = 32
-    V_850 = 33
-    V_950 = 34
-    VMAX_10M = 35
-    W_SNOW = 36
-    WW = 37
-    Z0 = 38
+@unique
+class WEATHER(IntEnum):
+    ALB_RAD = auto()
+    ASWDIFD_S = auto()
+    ASWDIR_S = auto()
+    CAPE_CON = auto()
+    CLCH = auto()
+    CLCL = auto()
+    CLCM = auto()
+    CLCT = auto()
+    H_SNOW = auto()
+    OMEGA_1000 = auto()
+    OMEGA_700 = auto()
+    OMEGA_850 = auto()
+    OMEGA_950 = auto()
+    PMSL = auto()
+    RELHUM_2M = auto()
+    RUNOFF_G = auto()
+    RUNOFF_S = auto()
+    T_2M = auto()
+    T_500 = auto()
+    T_850 = auto()
+    T_950 = auto()
+    T_G = auto()
+    TD_2M = auto()
+    TOT_PREC = auto()
+    U_10M = auto()
+    U_50 = auto()
+    U_500 = auto()
+    U_850 = auto()
+    U_950 = auto()
+    V_10M = auto()
+    V_50 = auto()
+    V_500 = auto()
+    V_850 = auto()
+    V_950 = auto()
+    VMAX_10M = auto()
+    W_SNOW = auto()
+    WW = auto()
+    Z0 = auto()
 
 
-class AIR_QUALITY(Enum):
-    CO_CONC = 0
-    DUST = 1
-    NH3_CONC = 2
-    NMVOC_CONC = 3
-    NO2_CONC = 4
-    NO_CONC = 5
-    O3_CONC = 6
-    PANS_CONC = 7
-    PM10_CONC = 8
-    PM2P5_CONC = 9
-    PMWF_CONC = 10
-    SIA_CONC = 11
-    SO2_CONC = 12
+class AIR_QUALITY(IntEnum):
+    CO_CONC = auto()
+    DUST = auto()
+    NH3_CONC = auto()
+    NMVOC_CONC = auto()
+    NO2_CONC = auto()
+    NO_CONC = auto()
+    O3_CONC = auto()
+    PANS_CONC = auto()
+    PM10_CONC = auto()
+    PM2P5_CONC = auto()
+    PMWF_CONC = auto()
+    SIA_CONC = auto()
+    SO2_CONC = auto()
 
 
 WEATHER_RANGES = {
