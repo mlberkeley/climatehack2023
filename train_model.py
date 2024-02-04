@@ -57,6 +57,7 @@ validation_loss, min_val_loss = 0, .15
 model = Model().to(device)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
+scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
 
 
 start = datetime.now()
@@ -167,7 +168,10 @@ for epoch in range(config.train.num_epochs):
                 #"sample_vis": sample_vis,
             })
 
+    scheduler.step()
+
     logger.info(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
+    logger.info(f"LR: {scheduler.get_last_lr()} -> {scheduler.get_lr()}")
 
 
 wandb.finish()
