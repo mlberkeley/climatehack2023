@@ -12,7 +12,7 @@ from datetime import datetime
 
 from data.random_data import ClimatehackDataset
 import submission.keys as keys
-from submission.resnet import NonHRVMeta as Model
+from submission.resnet import ResNet34 as Model
 from submission.config import config
 from util import util
 from eval import eval
