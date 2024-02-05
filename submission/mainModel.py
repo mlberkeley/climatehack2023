@@ -1,5 +1,5 @@
 from util import util
-from submission.resnet import *
+from resnet import *
 
 def _resnet(
     block: Type[Union[BasicBlock, Bottleneck]],
@@ -145,6 +145,7 @@ class MetaAndPv5(nn.Module):
     def forward(self, pv, meta):
         meta = util.site_normalize(meta)
         meta = torch.stack([meta[key] for key in self.meta_keys], dim=1)
+        print("meta shape:", meta.shape)
         x = self.linear1(torch.concat([meta, pv], dim=-1))
         x = self.r(x)
         return x
@@ -155,19 +156,19 @@ class MainModel2(nn.Module):
 
     REQUIRED_META = [
             #keys.META.TIME,
-            keys.META.LATITUDE,
-            keys.META.LONGITUDE,
-            keys.META.ORIENTATION,
-            keys.META.TILT,
-            keys.META.KWP,
+            #keys.META.LATITUDE,
+            #keys.META.LONGITUDE,
+            #keys.META.ORIENTATION,
+            #keys.META.TILT,
+            #keys.META.KWP,
     ]
     REQUIRED_NONHRV = [
             keys.NONHRV.VIS006,
             keys.NONHRV.VIS008,
     ]
     REQUIRED_WEATHER = [
-            #keys.WEATHER.CLCH,
-            #keys.WEATHER.CLCL
+            keys.WEATHER.CLCT,
+            keys.WEATHER.CLCL,
             ]
 
     def __init__(self) -> None:
