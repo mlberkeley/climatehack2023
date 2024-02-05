@@ -7,7 +7,7 @@ import h5py
 import torch
 
 from competition import BaseEvaluator
-from resnet import ResNet34 as Model
+from resnet import ResNetPV as Model
 import numpy as np
 from util import util
 import keys as keys
@@ -21,7 +21,7 @@ class Evaluator(BaseEvaluator):
         """Sets up anything required for evaluation, e.g. loading a model."""
 
         self.model = Model().to(device)
-        self.model.load_state_dict(torch.load("pushtest.pt", map_location=device))
+        self.model.load_state_dict(torch.load("best_pushtest.pt", map_location=device))
         self.model.eval()
 
     def predict(self, features: h5py.File):

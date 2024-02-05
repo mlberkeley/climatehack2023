@@ -12,6 +12,38 @@ import submission.keys as keys
 from loguru import logger
 
 
+def get_dataloader(
+    start_date: datetime,
+    end_date: datetime,
+    root_dir: Path,
+    meta_features: set[keys.META],
+    nonhrv_features: set[keys.NONHRV],
+    weather_features: set[keys.WEATHER],
+    batch_size: int,
+    num_workers: int,
+    shuffle: bool,
+    subset_size: int = 0,
+):
+    start_time = datetime.now()
+    dataset = ClimatehackDataset(
+        start_date=start_date,
+        end_date=end_date,
+        root_dir=root_dir,
+        meta_features=meta_features,
+        nonhrv_features=nonhrv_features,
+        weather_features=weather_features,
+        subset_size=subset_size,
+    )
+    logger.info(f"Loaded dataset with {len(dataset):_} samples in {datetime.now() - start_time}")
+    return torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        pin_memory=True,
+        num_workers=num_workers,
+        shuffle=shuffle
+    )
+
+
 class ClimatehackDataset(Dataset):
 
     def __init__(self,
