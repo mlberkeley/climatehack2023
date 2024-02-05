@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torchinfo import summary
 from datetime import datetime
 
-from data.random_data import get_dataloader
+from data.random_data import get_dataloaders
 import submission.keys as keys
 from submission.resnet import ResNetPV as Model
 from config import config
@@ -52,29 +52,11 @@ summary(model, input_data=(
 ), device=device)
 
 
-train_dataloader = get_dataloader(
-    start_date=config.data.train_start_date,
-    end_date=config.data.train_end_date,
-    root_dir=config.data.root,
-    meta_features=model.REQUIRED_META,
-    nonhrv_features=model.REQUIRED_NONHRV,
-    weather_features=model.REQUIRED_WEATHER,
-    batch_size=config.train.batch_size,
-    num_workers=config.data.num_workers,
-    shuffle=True,
-    subset_size=config.data.train_subset_size,
-)
-eval_dataloader = get_dataloader(
-    start_date=config.data.eval_start_date,
-    end_date=config.data.eval_end_date,
-    root_dir=config.data.root,
-    meta_features=model.REQUIRED_META,
-    nonhrv_features=model.REQUIRED_NONHRV,
-    weather_features=model.REQUIRED_WEATHER,
-    batch_size=config.train.batch_size,
-    num_workers=config.data.num_workers,
-    shuffle=False,
-    subset_size=config.data.eval_subset_size,
+train_dataloader, eval_dataloader = get_dataloaders(
+        config=config,
+        meta_features=model.REQUIRED_META,
+        nonhrv_features=model.REQUIRED_NONHRV,
+        weather_features=model.REQUIRED_WEATHER,
 )
 
 wandb.init(

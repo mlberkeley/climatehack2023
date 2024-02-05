@@ -10,38 +10,53 @@ import h5py
 from util import util
 import submission.keys as keys
 from loguru import logger
+from easydict import EasyDict
 
 
-def get_dataloader(
-    start_date: datetime,
-    end_date: datetime,
-    root_dir: Path,
+def get_dataloaders(
+    config: EasyDict,
     meta_features: set[keys.META],
     nonhrv_features: set[keys.NONHRV],
     weather_features: set[keys.WEATHER],
-    batch_size: int,
-    num_workers: int,
-    shuffle: bool,
-    subset_size: int = 0,
 ):
     start_time = datetime.now()
-    dataset = ClimatehackDataset(
-        start_date=start_date,
-        end_date=end_date,
-        root_dir=root_dir,
-        meta_features=meta_features,
-        nonhrv_features=nonhrv_features,
-        weather_features=weather_features,
-        subset_size=subset_size,
+    train_dataset = ClimatehackDataset(
+            start_date=config.data.train_start_date,
+            end_date=config.data.train_end_date,
+            root_dir=config.data.root,
+            meta_features=meta_features,
+            nonhrv_features=nonhrv_features,
+            weather_features=weather_features,
+            subset_size=config.data.train_subset_size,
     )
-    logger.info(f"Loaded dataset with {len(dataset):_} samples in {datetime.now() - start_time}")
-    return torch.utils.data.DataLoader(
-        dataset,
-        batch_size=batch_size,
-        pin_memory=True,
-        num_workers=num_workers,
-        shuffle=shuffle
+    logger.info(f"Loaded train dataset with {len(train_dataset):,} samples in {datetime.now() - start_time}")
+    start_time = datetime.now()
+    eval_dataset = ClimatehackDataset(
+            start_date=config.data.eval_start_date,
+            end_date=config.data.eval_end_date,
+            root_dir=config.data.root,
+            meta_features=meta_features,
+            nonhrv_features=nonhrv_features,
+            weather_features=weather_features,
+            subset_size=config.data.eval_subset_size,
     )
+    logger.info(f"Loaded eval dataset with {len(eval_dataset):,} samples in {datetime.now() - start_time}")
+    train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=config.train.batch_size,
+            pin_memory=True,
+            num_workers=config.data.num_workers,
+            shuffle=True,
+    )
+    eval_loader = torch.utils.data.DataLoader(
+            eval_dataset,
+            batch_size=config.eval.batch_size,
+            pin_memory=True,
+            num_workers=config.data.num_workers,
+            shuffle=False,
+    )
+    return train_loader, eval_loader
+
 
 
 class ClimatehackDataset(Dataset):
