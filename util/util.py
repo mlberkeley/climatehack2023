@@ -3,6 +3,15 @@ import matplotlib.pyplot as plt
 import wandb
 import torch
 import submission.keys as keys
+import sys
+from loguru import logger
+
+logger.remove(0)
+logger.add(sys.stderr, format=\
+        "<green>{time:HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{file}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+)
 
 # TODO  have one util file... this is a mess
 
