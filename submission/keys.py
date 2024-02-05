@@ -3,7 +3,7 @@ from enum import IntEnum, auto, unique
 
 @unique
 class META(IntEnum):
-    TIME = auto()
+    TIME = 0
     LATITUDE = auto()
     LONGITUDE = auto()
     ORIENTATION = auto()
@@ -13,7 +13,7 @@ class META(IntEnum):
 
 @unique
 class NONHRV(IntEnum):
-    IR_016 = auto()
+    IR_016 = 0
     IR_039 = auto()
     IR_087 = auto()
     IR_097 = auto()
@@ -28,7 +28,7 @@ class NONHRV(IntEnum):
 
 @unique
 class WEATHER(IntEnum):
-    ALB_RAD = auto()
+    ALB_RAD = 0
     ASWDIFD_S = auto()
     ASWDIR_S = auto()
     CAPE_CON = auto()
@@ -69,7 +69,7 @@ class WEATHER(IntEnum):
 
 
 class AIR_QUALITY(IntEnum):
-    CO_CONC = auto()
+    CO_CONC = 0
     DUST = auto()
     NH3_CONC = auto()
     NMVOC_CONC = auto()
