@@ -1,0 +1,24 @@
+model:
+  config:
+    channel: VIS008
+train:
+  batch_size: 128
+  num_epochs: 10
+  clip_grad_norm: 10
+  log_every: 10
+  wandb_log_every: 50
+  eval_every: 250
+  lr: 0.001
+eval:
+  batch_size: 128
+data:
+  num_workers: 16
+  root: /data/climatehack/
+  train_start_date: 2021-01-01 00:00:00
+  train_end_date: 2022-01-01 00:00:00
+  # subsets are randomly sampled from the full dataset using a seed of 21
+  # 0 means use all data
+  train_subset_size: 0
+  eval_start_date: 2020-01-01 00:00:00
+  eval_end_date: 2021-01-01 00:00:00
+  eval_subset_size: 10000

@@ -3,12 +3,15 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 
+import keys as keys
+from util import util
+
+import numpy as np
 import torch
 import torch.nn as nn
-from typing import Any, Callable, List, Optional, Type, Union
 from torch import Tensor
-from util import util
-import keys as keys
+from typing import Any, Callable, List, Optional, Type, Union
+
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
@@ -272,64 +275,79 @@ def _resnet(
 
     return model
 
-def resnet18(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def resnet18(*, weights = None, **kwargs: Any) -> ResNet:
     return _resnet(BasicBlock, [2, 2, 2, 2], weights, **kwargs)
 
-def resnet34(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def resnet34(*, weights = None, **kwargs: Any) -> ResNet:
     return _resnet(BasicBlock, [3, 4, 6, 3], weights, **kwargs)
 
-def resnet50(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def resnet50(*, weights = None, **kwargs: Any) -> ResNet:
     return _resnet(Bottleneck, [3, 4, 6, 3], weights, **kwargs)
 
-def resnet101(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def resnet101(*, weights = None, **kwargs: Any) -> ResNet:
     return _resnet(Bottleneck, [3, 4, 23, 3], weights, **kwargs)
 
-def resnet152(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def resnet152(*, weights = None, **kwargs: Any) -> ResNet:
     return _resnet(Bottleneck, [3, 8, 36, 3], weights, **kwargs)
 
-def resnext50_32x4d(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def resnext18_32x4d(*, weights = None, **kwargs: Any) -> ResNet:
+    kwargs["groups"] = 32
+    kwargs["width_per_group"] = 4
+    return _resnet(Bottleneck, [2, 2, 2, 2], weights, **kwargs)
+
+def resnext50_32x4d(*, weights = None, **kwargs: Any) -> ResNet:
     kwargs["groups"] = 32
     kwargs["width_per_group"] = 4
     return _resnet(Bottleneck, [3, 4, 6, 3], weights, **kwargs)
 
-def resnext101_32x8d(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def resnext101_32x8d(*, weights = None, **kwargs: Any) -> ResNet:
     kwargs["groups"] = 32
     kwargs["width_per_group"] = 8
     return _resnet(Bottleneck, [3, 4, 23, 3], weights, **kwargs)
 
-def wide_resnet50_2(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def wide_resnet50_2(*, weights = None, **kwargs: Any) -> ResNet:
     kwargs["width_per_group"] = 64 * 2
     return _resnet(Bottleneck, [3, 4, 6, 3], weights, **kwargs)
 
-def wide_resnet101_2(*, weights = None, inchannels: int = 12, **kwargs: Any) -> ResNet:
+def wide_resnet101_2(*, weights = None, **kwargs: Any) -> ResNet:
     kwargs["width_per_group"] = 64 * 2
     return _resnet(Bottleneck, [3, 4, 23, 3], weights, **kwargs)
 
 
+nonhrv_means = np.array([ 64.32478999, 214.4245939 , 184.27316934, 192.57402931,
+        149.51705036, 215.46701489, 231.37654464,  48.9898303,
+         55.36402512, 155.32697878, 133.30849206]) / 255
+nonhrv_stds = np.array([42.93865932,  9.29965694, 15.06005658,  8.77191701, 38.12814695,
+        13.52211255,  9.89656887, 35.50711088, 36.63654748, 25.75839582,
+        25.25472843]) / 255
+
+
 class ResNetPV(nn.Module):
 
-    REQUIRED_META = [
-    ]
-    REQUIRED_NONHRV = [
-        keys.NONHRV.VIS006,
-    ]
+    REQUIRED_META = []
+    REQUIRED_NONHRV = []
     REQUIRED_WEATHER = []
+    # REQUIRED_FUTURE = [keys.FUTURE.NONHRV] this works, makes each nonhrv have 60 channels
 
-    def __init__(self) -> None:
+    def __init__(self, config: dict) -> None:
         super().__init__()
+        self.channel = keys.NONHRV.from_str(config['channel'])
+        ResNetPV.REQUIRED_NONHRV.append(self.channel)
 
-        self.resnet_backbone = resnet50()
+        self.resnet_backbone = resnext50_32x4d(inchannels=12)
         self.head = nn.Sequential(
-                nn.Linear(self.resnet_backbone.latent_dim + 12, 256),
-                nn.LeakyReLU(0.1),
-                nn.Linear(256, 256),
-                nn.LeakyReLU(0.1),
+                nn.Linear(self.resnet_backbone.latent_dim + 12, 256), nn.GELU(),
+                nn.Linear(256, 256), nn.GELU(),
                 nn.Linear(256, 48),
                 nn.Sigmoid(),
         )
 
     def forward(self, pv, site_features, nonhrv, weather):
-        feature = self.resnet_backbone(nonhrv[keys.NONHRV.VIS006])
+        nonhrv = nonhrv.copy()
+        for k, v in nonhrv.items():
+            nonhrv[k] = (v - nonhrv_means[k.value]) / nonhrv_stds[k.value]
+
+        feature = self.resnet_backbone(nonhrv[self.channel]) ## [:, [-5, -3, -1]]) if trying 3 channels
         x = torch.concat((feature, pv), dim=-1)
         x = self.head(x)
         return x
