@@ -21,6 +21,7 @@ from util import util
 from eval import eval
 from pathlib import Path
 from loguru import logger
+from ema_pytorch import EMA
 
 
 # INFO: setup
@@ -83,12 +84,20 @@ wandb.init(
 )
 
 # INFO: train
+ema = EMA(
+    model,
+    beta = 0.999,               # exponential moving average factor
+    update_after_step = 100,    # only after this number of .update() calls will it start updating
+    update_every = 10,           # how often to actually update, to save on compute (updates every 10th .update() call)
+)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
 scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
 
 val_loss_1h, val_loss_4h = eval(eval_dataloader, model)
+ema_loss_1h, ema_loss_4h = eval(eval_dataloader, ema)
 min_val_loss = val_loss_4h
+min_ema_loss = val_loss_4h
 
 for epoch in range(config.train.num_epochs):
     logger.info(f"[{datetime.now()}]: Epoch {epoch + 1}")
@@ -115,6 +124,7 @@ for epoch in range(config.train.num_epochs):
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.clip_grad_norm)
         optimizer.step()
+        ema.update()
 
         size = int(pv_targets.size(0))
         running_losses['loss'] += float(loss) * size
@@ -126,23 +136,29 @@ for epoch in range(config.train.num_epochs):
             st = datetime.now()
             logger.info(f"validating...")
             val_loss_1h, val_loss_4h = eval(eval_dataloader, model)
-            logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}")
+            ema_loss_1h, ema_loss_4h = eval(eval_dataloader, ema)
+            logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}, ema_l1 - 1h: {ema_loss_1h:.5f}, 4h: {ema_loss_4h:.5f}")
 
             torch.save(model.state_dict(), save_path)
             if val_loss_4h < min_val_loss:
                 torch.save(model.state_dict(), save_path + '.best')
                 min_val_loss = val_loss_4h
+            if ema_loss_4h < min_ema_loss:
+                torch.save(ema.ema_model.state_dict(), save_path + '.best_ema')
+                min_val_loss = ema_loss_4h
 
         if (i + 1) % config.train.wandb_log_every == 0:
             #sample_pv, sample_vis = util.visualize_example(
                 #pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
             #)
             wandb.log({
-                "train_loss": running_losses['loss'] / count,
-                "train_l1_1h": running_losses['l1_1h'] / count,
-                "train_l1_4h": running_losses['l1_4h'] / count,
-                "val_loss_1h": val_loss_1h,
-                "val_loss_4h": val_loss_4h,
+                'train_loss': running_losses['loss'] / count,
+                'train_l1_1h': running_losses['l1_1h'] / count,
+                'train_l1_4h': running_losses['l1_4h'] / count,
+                'val_loss_1h': val_loss_1h,
+                'val_loss_4h': val_loss_4h,
+                'ema_val_loss_1h': ema_loss_1h,
+                'ema_val_loss_4h': ema_loss_4h,
                 # "lr": scheduler.get_last_lr()[0],
                 #"sample_pv": sample_pv,
                 #"sample_vis": sample_vis,
