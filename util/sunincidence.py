@@ -41,20 +41,22 @@ def getSolarPosition(t, project_data):
     beta = 90.0 - theta_h
     
     # Calculate incident angle to surface
-    theta = rad2deg(math.acos((math.cos(deg2rad(beta)) * math.cos(deg2rad(gamma)) * math.sin(deg2rad(eta))) + (math.sin(deg2rad(beta)) * math.cos(deg2rad(eta)))))
+    theta = math.acos((math.cos(deg2rad(beta)) * math.cos(deg2rad(gamma)) * math.sin(deg2rad(eta))) + (math.sin(deg2rad(beta)) * math.cos(deg2rad(eta))))
     
     # Solar position datum
-    sp_datum = {
-        'Datetime_UTC': t,
-        'Azimuth': phi,
-        'Zenith': theta_h,
-        'RightAscension': rasc,
-        'Declination': d,
-        'HourAngle': h,
-        'IncidentAngle': theta
-    }
+    # sp_datum = {
+    #     'Datetime_UTC': t,
+    #     'Azimuth': phi,
+    #     'Zenith': theta_h,
+    #     'RightAscension': rasc,
+    #     'Declination': d,
+    #     'HourAngle': h,
+    #     'IncidentAngle': theta
+    # }
+
+    return np.deg2rad(theta_h), theta
     
-    return sp_datum
+    # return sp_datum
 
 
 def siteinfo2projectdata(lat, long, orientation, tilt, interval=5):

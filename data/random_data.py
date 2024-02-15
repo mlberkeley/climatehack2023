@@ -41,44 +41,44 @@ def get_dataloaders(
     if load_train:
         start_time = datetime.now()
         train_dataset = ClimatehackDataset(
-                start_date=config.data.train_start_date,
-                end_date=config.data.train_end_date,
-                root_dir=config.data.root,
-                meta_features=meta_features,
-                nonhrv_features=nonhrv_features,
-                weather_features=weather_features,
-                future_features=future_features,
-                subset_size=config.data.train_subset_size,
-                transform=TRAIN_TRANSFORM,
+            start_date=config.data.train_start_date,
+            end_date=config.data.train_end_date,
+            root_dir=config.data.root,
+            meta_features=meta_features,
+            nonhrv_features=nonhrv_features,
+            weather_features=weather_features,
+            future_features=future_features,
+            subset_size=config.data.train_subset_size,
+            transform=TRAIN_TRANSFORM,
         )
         logger.info(f"Loaded train dataset with {len(train_dataset):,} samples in {datetime.now() - start_time}")
         train_loader = torch.utils.data.DataLoader(
-                train_dataset,
-                batch_size=config.train.batch_size,
-                pin_memory=True,
-                num_workers=config.data.num_workers,
-                shuffle=True,
+            train_dataset,
+            batch_size=config.train.batch_size,
+            pin_memory=True,
+            num_workers=config.data.num_workers,
+            shuffle=True,
         )
         ret.append(train_loader)
     if load_eval:
         start_time = datetime.now()
         eval_dataset = ClimatehackDataset(
-                start_date=config.data.eval_start_date,
-                end_date=config.data.eval_end_date,
-                root_dir=config.data.root,
-                meta_features=meta_features,
-                nonhrv_features=nonhrv_features,
-                weather_features=weather_features,
-                future_features=future_features,
-                subset_size=config.data.eval_subset_size,
+            start_date=config.data.eval_start_date,
+            end_date=config.data.eval_end_date,
+            root_dir=config.data.root,
+            meta_features=meta_features,
+            nonhrv_features=nonhrv_features,
+            weather_features=weather_features,
+            future_features=future_features,
+            subset_size=config.data.eval_subset_size,
         )
         logger.info(f"Loaded eval dataset with {len(eval_dataset):,} samples in {datetime.now() - start_time}")
         eval_loader = torch.utils.data.DataLoader(
-                eval_dataset,
-                batch_size=config.eval.batch_size,
-                pin_memory=True,
-                num_workers=config.data.num_workers,
-                shuffle=False,
+            eval_dataset,
+            batch_size=config.eval.batch_size,
+            pin_memory=True,
+            num_workers=config.data.num_workers,
+            shuffle=False,
         )
         ret.append(eval_loader)
     if len(ret) == 1:

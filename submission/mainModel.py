@@ -1,5 +1,6 @@
 from util import util
 from submission.resnet import *
+from util.modules import solar_pos
 
 def _resnet(
     block: Type[Union[BasicBlock, Bottleneck]],
@@ -137,40 +138,42 @@ class MetaAndPv5(nn.Module):
             keys.META.ORIENTATION,
             keys.META.TILT,
             keys.META.KWP,
-            ]
+        ]
 
         self.r = nn.ReLU(inplace=True)
         self.linear1 = nn.Linear(17, 30)
 
-    def forward(self, pv, meta):
-        meta = util.site_normalize(meta)
-        meta = torch.stack([meta[key] for key in self.meta_keys], dim=1)
+    def forward(self, pv, site_features):
+        site_features = util.site_normalize(site_features)
+        meta = torch.stack([site_features[key] for key in self.meta_keys], dim=1)
         x = self.linear1(torch.concat([meta, pv], dim=-1))
         x = self.r(x)
         return x
 
 
 
+
 class MainModel2(nn.Module):
 
     REQUIRED_META = [
-            #keys.META.TIME,
-            keys.META.LATITUDE,
-            keys.META.LONGITUDE,
-            keys.META.ORIENTATION,
-            keys.META.TILT,
-            keys.META.KWP,
+        keys.META.TIME,
+        keys.META.LATITUDE,
+        keys.META.LONGITUDE,
+        keys.META.ORIENTATION,
+        keys.META.TILT,
+        keys.META.KWP
     ]
-    REQUIRED_NONHRV = [
-            keys.NONHRV.VIS006,
-            keys.NONHRV.VIS008,
-    ]
-    REQUIRED_WEATHER = [
-            #keys.WEATHER.CLCH,
-            #keys.WEATHER.CLCL
-            ]
 
-    def __init__(self) -> None:
+    REQUIRED_NONHRV = [
+        keys.NONHRV.VIS008,
+    ]
+
+    REQUIRED_WEATHER = [
+        #keys.WEATHER.CLCH,
+        #keys.WEATHER.CLCL
+    ]
+
+    def __init__(self, config) -> None:
         super().__init__()
 
         self.MetaAndPv = MetaAndPv5()
@@ -186,9 +189,9 @@ class MainModel2(nn.Module):
 
 
         if len(self.REQUIRED_META):
-            self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + self.MetaAndPv.output_dim , 256)
+            self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + self.MetaAndPv.output_dim + 2 , 256)
         else:
-            self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + 12, 256)
+            self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + 12 + 2, 256)
 
 
         self.linear2 = nn.Linear(256, 48)
@@ -208,7 +211,7 @@ class MainModel2(nn.Module):
         else:
             feat3 = pv
 
-        all_feat = torch.concat([feat1, feat2, feat3], dim=-1)
+        all_feat = torch.concat([feat1, feat2, feat3, solar_pos(site_features, device="cuda")], dim=-1)
 
         x = self.r(self.linear1(all_feat))
         x = torch.sigmoid(self.linear2(x))

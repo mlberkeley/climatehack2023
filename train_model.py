@@ -13,7 +13,7 @@ from datetime import datetime
 
 from data.random_data import get_dataloaders
 import submission.keys as keys
-from submission.resnet import ResNetPV as Model
+from submission.mainModel import MainModel2 as Model
 # from submission.convnext import ConvNextPV as Model
 # from submission.aggregate_model import Model as Model
 from config import get_config
@@ -65,11 +65,11 @@ summary(model, input_data=(
 
 
 train_dataloader, eval_dataloader = get_dataloaders(
-        config=config,
-        meta_features=model.REQUIRED_META,
-        nonhrv_features=model.REQUIRED_NONHRV,
-        weather_features=model.REQUIRED_WEATHER,
-        future_features=model.REQUIRED_FUTURE if hasattr(model, 'REQUIRED_FUTURE') else None,
+    config=config,
+    meta_features=model.REQUIRED_META,
+    nonhrv_features=model.REQUIRED_NONHRV,
+    weather_features=model.REQUIRED_WEATHER,
+    future_features=model.REQUIRED_FUTURE if hasattr(model, 'REQUIRED_FUTURE') else None,
 )
 
 wandb.init(
@@ -95,9 +95,9 @@ for epoch in range(config.train.num_epochs):
     model.train()
 
     running_losses = {
-            'loss': 0,
-            'l1_1h': 0,
-            'l1_4h': 0,
+        'loss': 0,
+        'l1_1h': 0,
+        'l1_4h': 0,
     }
     count = 0
     last_time = datetime.now()
