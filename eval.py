@@ -54,6 +54,7 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--name', type=str, required=True, help='name of the model')
     parser.add_argument('-o', '--output', type=str, default=None, help='path to save predictions')
     parser.add_argument('-gt', '--ground_truth', type=str, default=None, help='dir to save ground truth data')
     parser.add_argument("-c", "--config", type=str, required=True, help='config file to use')
@@ -65,13 +66,14 @@ if __name__ == "__main__":
     config = get_config(args.config, args.opts)
 
     model = Model(config.model.config).to(device)
-    model.load_state_dict(torch.load(f'submission/best_{config.train.model_save_name}'))
+    model.load_state_dict(torch.load(f'{args.name}'))
     model.eval()
     dataloader = get_dataloaders(
         config=config,
         meta_features=model.REQUIRED_META,
         nonhrv_features=model.REQUIRED_NONHRV,
         weather_features=model.REQUIRED_WEATHER,
+        future_features=None,
         load_train=False,
     )
     eval(dataloader, model, preds_save_path=args.output, ground_truth_path=args.ground_truth)
