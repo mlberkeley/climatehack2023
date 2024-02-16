@@ -13,14 +13,12 @@ import json
 import pickle
 import h5py
 from tqdm import tqdm
-from submission.keys import WEATHER_RANGES
+from submission.keys import WEATHER, WEATHER_RANGES
 from loguru import logger
 
 
 BAKE_START = datetime(2020, 1, 1)
 BAKE_END = datetime(2021, 12, 31)
-
-WEATHER_KEYS = ["alb_rad", "aswdifd_s", "aswdir_s", "cape_con", "clch", "clcl", "clcm", "clct", "h_snow", "omega_1000", "omega_700", "omega_850", "omega_950", "pmsl", "relhum_2m", "runoff_g", "runoff_s", "t_2m", "t_500", "t_850", "t_950", "t_g", "td_2m", "tot_prec", "u_10m", "u_50", "u_500", "u_850", "u_950", "v_10m", "v_50", "v_500", "v_850", "v_950", "vmax_10m", "w_snow", "ww", "z0"]
 
 class BakerDataset(IterableDataset):
     def __init__(self):
@@ -186,6 +184,10 @@ def main(
         logger.info(f'Bake index created in: {end - start}')
     else:
         # bake_index = np.load("bake_index.npy")
+        # h5file.create_dataset(
+        #         'bake_index',
+        #         data=bake_index,
+        # )
         bake_index = h5file['bake_index'][:]
 
     # PV
@@ -244,8 +246,8 @@ def main(
             time = datetime.fromtimestamp(timeint)
             nwp_data = dataset.weather.sel(time=time)
             nwp_data = xr.concat([
-                    (nwp_data[k] - WEATHER_RANGES[k][0]) / (WEATHER_RANGES[k][1] - WEATHER_RANGES[k][0])
-                    for k in WEATHER_KEYS
+                    (nwp_data[k.name.lower()] - WEATHER_RANGES[k][0]) / (WEATHER_RANGES[k][1] - WEATHER_RANGES[k][0])
+                    for k in WEATHER
                 ], dim="channel").values
             # c, y, x -> c, y, x
             ds[:, i] = (nwp_data * 255).astype(np.uint8)
@@ -254,15 +256,11 @@ def main(
     h5file.close()
 
 
-
 if __name__ == "__main__":
-    # TODO: add a dtype option
-    # TODO  make this all configured with click or something
-    # TODO  play around with normalizations (log for some data, linear, etc)
     main(
         overwrite=False,
         skip_bake_index=True,
-        skip_pv=True,
+        skip_pv=False,
         skip_nonhrv=True,
-        skip_weather=True,
+        skip_weather=False,
     )

@@ -42,7 +42,6 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
 
     val_loss_1h = tot_loss_1h / count
     val_loss_4h = tot_loss_4h / count
-    logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}")
 
     if preds_save_path is not None:
         np.save(preds_save_path, preds)
@@ -76,4 +75,5 @@ if __name__ == "__main__":
         future_features=None,
         load_train=False,
     )
-    eval(dataloader, model, preds_save_path=args.output, ground_truth_path=args.ground_truth)
+    val_loss_1h, val_loss_4h = eval(dataloader, model, preds_save_path=args.output, ground_truth_path=args.ground_truth)
+    logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}")

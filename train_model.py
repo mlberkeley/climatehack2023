@@ -145,7 +145,7 @@ for epoch in range(config.train.num_epochs):
                 min_val_loss = val_loss_4h
             if ema_loss_4h < min_ema_loss:
                 torch.save(ema.ema_model.state_dict(), save_path + '.best_ema')
-                min_val_loss = ema_loss_4h
+                min_ema_loss = ema_loss_4h
 
         if (i + 1) % config.train.wandb_log_every == 0:
             #sample_pv, sample_vis = util.visualize_example(

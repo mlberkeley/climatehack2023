@@ -4,7 +4,7 @@ model:
 train:
   batch_size: 256
   num_epochs: 10
-  clip_grad_norm: 10
+  clip_grad_norm: 1
   log_every: 10
   wandb_log_every: 50
   eval_every: 250
