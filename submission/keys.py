@@ -1,18 +1,26 @@
 from enum import IntEnum, auto, unique
 
+class KeyEnum(IntEnum):
+    @classmethod
+    def from_str(cls, key: str):
+        for k in cls:
+            if k.name == key:
+                return k
+        raise KeyError(f'Key {key} not found in {cls.__name__}')
 
 @unique
-class META(IntEnum):
+class META(KeyEnum):
     TIME = 0
     LATITUDE = auto()
     LONGITUDE = auto()
     ORIENTATION = auto()
     TILT = auto()
     KWP = auto()
+    SOLAR = auto()
 
 
 @unique
-class NONHRV(IntEnum):
+class NONHRV(KeyEnum):
     IR_016 = 0
     IR_039 = auto()
     IR_087 = auto()
@@ -27,7 +35,7 @@ class NONHRV(IntEnum):
 
 
 @unique
-class WEATHER(IntEnum):
+class WEATHER(KeyEnum):
     ALB_RAD = 0
     ASWDIFD_S = auto()
     ASWDIR_S = auto()
@@ -68,7 +76,7 @@ class WEATHER(IntEnum):
     Z0 = auto()
 
 
-class AIR_QUALITY(IntEnum):
+class AIR_QUALITY(KeyEnum):
     CO_CONC = 0
     DUST = auto()
     NH3_CONC = auto()
@@ -82,6 +90,11 @@ class AIR_QUALITY(IntEnum):
     PMWF_CONC = auto()
     SIA_CONC = auto()
     SO2_CONC = auto()
+
+
+# cheats for model training
+class FUTURE(KeyEnum):
+    NONHRV = 0
 
 
 WEATHER_RANGES = {

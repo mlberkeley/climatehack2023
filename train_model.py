@@ -2,6 +2,7 @@ import os
 import sys
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import wandb
 import argparse
@@ -10,99 +11,66 @@ from torch.utils.data import DataLoader
 from torchinfo import summary
 from datetime import datetime
 
-from data.random_data import ClimatehackDataset
+from data.random_data import get_dataloaders
 import submission.keys as keys
-from submission.resnet import ResNet34 as Model
-from submission.config import config
+from submission.mainModel import MainModel2 as Model
+# from submission.convnext import ConvNextPV as Model
+# from submission.aggregate_model import Model as Model
+from config import get_config
 from util import util
 from eval import eval
 from pathlib import Path
 from loguru import logger
+from ema_pytorch import EMA
 
-logger.remove(0)
-logger.add(sys.stderr, format=\
-        "<green>{time:HH:mm:ss}</green> | "
-        "<level>{level: <8}</level> | "
-        "<cyan>{file}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-)
 
 # INFO: setup
 parser = argparse.ArgumentParser()
 parser.add_argument("--nowandb", action='store_true')
-parser.add_argument("-n", "--run_name", type=str, default=None)
+parser.add_argument("-n", "--run_name", type=str, required=True)
 parser.add_argument("-m", "--run_notes", type=str, default=None)
+parser.add_argument("-g", "--run_group", type=str, default=None)
+parser.add_argument("-c", "--config", type=str, required=True, help='config file to use')
+parser.add_argument('--opts', nargs='*', default=[], help='arguments to override config as key=value')
 
 args = parser.parse_args()
+
+config = get_config(args.config, args.opts)
 
 
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+save_path = f'ckpts/{args.run_name}.pt'
+if Path(save_path).exists() or Path(save_path + '.best').exists():
+    logger.error(f"Model save path {save_path} already exists, exiting. ")
+    logger.error("Rename the run or delete the existing checkpoint to continue.")
+    exit()
+
 if device == "cpu":
     logger.critical('CPU mode is not supported (well it is but it is very slow)')
     exit()
+
 if 'CUDA_VISIBLE_DEVICES' not in os.environ:
     logger.warning('CUDA_VISIBLE_DEVICES not set, ensure you are using a free GPU')
 
 
-summary(Model(), input_data=(
+model = Model(config.model.config).to(device)
+
+summary(model, input_data=(
     torch.zeros((1, 12)),
-    {k: torch.zeros((1, )) for k in keys.META},
-    {k: torch.zeros((1, 12, 128, 128)) for k in keys.NONHRV},
-    {k: torch.zeros((1, 6, 128, 128)) for k in keys.WEATHER},
+    {k: torch.zeros((1, )) for k in model.REQUIRED_META},
+    {k: torch.zeros((1, 60 if hasattr(model, 'REQUIRED_FUTURE') else 12, 128, 128)) for k in model.REQUIRED_NONHRV},
+    {k: torch.zeros((1, 6, 128, 128)) for k in model.REQUIRED_WEATHER},
 ), device=device)
 
-validation_loss, min_val_loss = 0, .15
 
-model = Model().to(device)
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
-scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
-
-
-start = datetime.now()
-
-dataset = ClimatehackDataset(
-        start_date=config.data.train_start_date,
-        end_date=config.data.train_end_date,
-        root_dir=Path("/data/climatehack/"),
-        meta_features=model.REQUIRED_META,
-        nonhrv_features=model.REQUIRED_NONHRV,
-        weather_features=model.REQUIRED_WEATHER,
-        subset_size=config.data.train_subset_size,
-)
-
-logger.info(f'Train dataset length: {len(dataset):,}, loaded in {datetime.now() - start}')
-
-dataloader = DataLoader(
-        dataset,
-        batch_size=config.train.batch_size,
-        pin_memory=True,
-        num_workers=config.data.num_workers,
-        shuffle=True
-)
-
-
-start = datetime.now()
-
-eval_dataset = ClimatehackDataset(
-        start_date=config.data.eval_start_date,
-        end_date=config.data.eval_end_date,
-        root_dir=Path("/data/climatehack/"),
-        meta_features=model.REQUIRED_META,
-        nonhrv_features=model.REQUIRED_NONHRV,
-        weather_features=model.REQUIRED_WEATHER,
-        subset_size=config.data.eval_subset_size,
-)
-
-logger.info(f'Eval dataset length: {len(eval_dataset):,}, loaded in {datetime.now() - start}')
-
-eval_dataloader = DataLoader(
-        eval_dataset,
-        batch_size=config.eval.batch_size,
-        pin_memory=True,
-        num_workers=config.data.num_workers,
-        shuffle=False
+train_dataloader, eval_dataloader = get_dataloaders(
+    config=config,
+    meta_features=model.REQUIRED_META,
+    nonhrv_features=model.REQUIRED_NONHRV,
+    weather_features=model.REQUIRED_WEATHER,
+    future_features=model.REQUIRED_FUTURE if hasattr(model, 'REQUIRED_FUTURE') else None,
 )
 
 wandb.init(
@@ -111,19 +79,38 @@ wandb.init(
     config=dict(config),
     mode="offline" if args.nowandb else "online",
     name=args.run_name,
-    notes=args.run_notes
+    notes=args.run_notes,
+    group=args.run_group,
 )
 
-
 # INFO: train
+ema = EMA(
+    model,
+    beta = 0.999,               # exponential moving average factor
+    update_after_step = 100,    # only after this number of .update() calls will it start updating
+    update_every = 10,           # how often to actually update, to save on compute (updates every 10th .update() call)
+)
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=config.train.lr)
+scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
+
+val_loss_1h, val_loss_4h = eval(eval_dataloader, model)
+ema_loss_1h, ema_loss_4h = eval(eval_dataloader, ema)
+min_val_loss = val_loss_4h
+min_ema_loss = val_loss_4h
+
 for epoch in range(config.train.num_epochs):
     logger.info(f"[{datetime.now()}]: Epoch {epoch + 1}")
     model.train()
 
-    running_loss = 0.0
+    running_losses = {
+        'loss': 0,
+        'l1_1h': 0,
+        'l1_4h': 0,
+    }
     count = 0
     last_time = datetime.now()
-    for i, (pv_features, meta, nonhrv, weather, pv_targets) in enumerate(dataloader):
+    for i, (pv_features, meta, nonhrv, weather, pv_targets) in enumerate(train_dataloader):
         optimizer.zero_grad()
 
         meta, nonhrv, weather = util.dict_to_device(meta), util.dict_to_device(nonhrv), util.dict_to_device(weather)
@@ -132,45 +119,64 @@ for epoch in range(config.train.num_epochs):
 
         predictions = model(pv_features, meta, nonhrv, weather)
 
-        loss = criterion(predictions, pv_targets.to(device, dtype=torch.float))
+        loss = criterion(predictions, pv_targets)
         loss.backward()
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.clip_grad_norm)
         optimizer.step()
+        ema.update()
 
         size = int(pv_targets.size(0))
-        running_loss += float(loss) * size
+        running_losses['loss'] += float(loss) * size
+        running_losses['l1_1h'] += float(F.l1_loss(predictions[:, :12], pv_targets[:, :12])) * size
+        running_losses['l1_4h'] += float(F.l1_loss(predictions, pv_targets)) * size
         count += size
 
-        if i % 10 == 6:
-            logger.info(f"Epoch {epoch + 1}, {i + 1}: loss: {running_loss / count}")
-            os.makedirs("submission", exist_ok=True)
+        if (i + 1) % config.train.eval_every == 0:
+            st = datetime.now()
+            logger.info(f"validating...")
+            val_loss_1h, val_loss_4h = eval(eval_dataloader, model)
+            ema_loss_1h, ema_loss_4h = eval(eval_dataloader, ema)
+            logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}, ema_l1 - 1h: {ema_loss_1h:.5f}, 4h: {ema_loss_4h:.5f}")
 
+            torch.save(model.state_dict(), save_path)
+            if val_loss_4h < min_val_loss:
+                torch.save(model.state_dict(), save_path + '.best')
+                min_val_loss = val_loss_4h
+            if ema_loss_4h < min_ema_loss:
+                torch.save(ema.ema_model.state_dict(), save_path + '.best_ema')
+                min_ema_loss = ema_loss_4h
+
+        if (i + 1) % config.train.wandb_log_every == 0:
             #sample_pv, sample_vis = util.visualize_example(
                 #pv_features[0], pv_targets[0], predictions[0], nonhrv_features[0]
             #)
-
-            if i % 140 == 6:
-                st = datetime.now()
-                logger.info(f"validating: start {datetime.now()}")
-                validation_loss = eval(eval_dataloader, model)
-                logger.info(f"loss: {validation_loss}, validation time {datetime.now() - st}")
-
-                torch.save(model.state_dict(), f"submission/{config.train.model_save_name}")
-                if validation_loss < min_val_loss:
-                    #torch.save(model.state_dict(), f"submission/best_{file_save_name}")
-                    min_val_loss = validation_loss
-
             wandb.log({
-                "train_loss": running_loss / (count + 1e-10),
-                "validation_loss": validation_loss,
+                'train_loss': running_losses['loss'] / count,
+                'train_l1_1h': running_losses['l1_1h'] / count,
+                'train_l1_4h': running_losses['l1_4h'] / count,
+                'val_loss_1h': val_loss_1h,
+                'val_loss_4h': val_loss_4h,
+                'ema_val_loss_1h': ema_loss_1h,
+                'ema_val_loss_4h': ema_loss_4h,
+                # "lr": scheduler.get_last_lr()[0],
                 #"sample_pv": sample_pv,
                 #"sample_vis": sample_vis,
             })
 
+        if (i + 1) % config.train.log_every == 0:
+            logger.info(
+                    f"Epoch {epoch + 1}, {i + 1}: "
+                    f"loss: {running_losses['loss'] / count:.5f}, "
+                    f"l1_1h: {running_losses['l1_1h'] / count:.5f}, "
+                    f"l1_4h: {running_losses['l1_4h'] / count:.5f}"
+            )
+            running_losses = dict.fromkeys(running_losses, 0)
+            count = 0
+
     scheduler.step()
 
-    logger.info(f"Epoch {epoch + 1}: {running_loss / (count + 1e-10)}")
+    logger.info(f"Epoch {epoch + 1}: {running_losses['loss'] / count}")
     logger.info(f"LR: {scheduler.get_last_lr()} -> {scheduler.get_lr()}")
 
 
