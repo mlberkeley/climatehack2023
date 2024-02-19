@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn.functional as F
 import keys
 
 normalizers = np.array([(-1.4087231368096667, 1.3890225067478146),
@@ -34,3 +35,60 @@ def site_normalize(vals):
     #assert val_type in norms, "val_type error, not in norms, can't be normalized"
     #mean, std = norms[val_type]
     #return (val * std) + mean
+
+
+
+def shift_images(images, shift_x, shift_y):
+    """
+    Shift a batch of images in PyTorch tensor format.
+
+    Args:
+    - images (torch.Tensor): Batch of input images with shape (batch_size, channels, height, width)
+    - shift_x (int): Number of pixels to shift in the horizontal direction
+    - shift_y (int): Number of pixels to shift in the vertical direction
+
+    Returns:
+    - shifted_images (torch.Tensor): Batch of shifted images with the same shape as input images
+    """
+
+    batch_size, channels, height, width = images.size()
+
+    # Create an output tensor to store shifted images
+    shifted_images = torch.zeros_like(images)
+
+    # Calculate the boundaries for cropping and filling
+    crop_left = max(0, -shift_x)
+    crop_right = max(0, shift_x)
+    crop_top = max(0, -shift_y)
+    crop_bottom = max(0, shift_y)
+
+    fill_left = max(0, shift_x)
+    fill_right = max(0, -shift_x)
+    fill_top = max(0, shift_y)
+    fill_bottom = max(0, -shift_y)
+
+    # Shift images using torch.roll function
+    shifted_images = torch.roll(images, shifts=(shift_y, shift_x), dims=(2, 3))
+
+    # Crop and fill the shifted areas
+    if crop_left > 0:
+        shifted_images[:, :, :, :crop_left] = 0  # Fill left
+    elif fill_left > 0:
+        shifted_images[:, :, :, -fill_left:] = 0  # Fill left
+
+    if crop_right > 0:
+        shifted_images[:, :, :, -crop_right:] = 0  # Fill right
+    elif fill_right > 0:
+        shifted_images[:, :, :, :fill_right] = 0  # Fill right
+
+    if crop_top > 0:
+        shifted_images[:, :, :crop_top, :] = 0  # Fill top
+    elif fill_top > 0:
+        shifted_images[:, :, -fill_top:, :] = 0  # Fill top
+
+    if crop_bottom > 0:
+        shifted_images[:, :, -crop_bottom:, :] = 0  # Fill bottom
+    elif fill_bottom > 0:
+        shifted_images[:, :, :fill_bottom, :] = 0  # Fill bottom
+
+    return shifted_images
