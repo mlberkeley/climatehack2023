@@ -9,7 +9,7 @@ import torch
 from competition import BaseEvaluator
 from resnet import ResNetPV as Model
 import numpy as np
-from util import util
+import util
 import keys as keys
 
 

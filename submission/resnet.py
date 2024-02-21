@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 
 import keys as keys
-from util import util
+import util
 
 import numpy as np
 import torch

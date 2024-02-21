@@ -9,11 +9,13 @@ from loguru import logger
 #logger.remove(0)
 logger.add(sys.stderr, format=\
         "<green>{time:HH:mm:ss}</green> | "
-        "<level>{level: <8}</level> | "
-        "<cyan>{file}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-)
+           "<level>{level: <8}</level> | "
+           "<cyan>{file}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
 
 # TODO  have one util file... this is a mess
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def to_np(a):
     return a.detach().cpu().numpy()
@@ -39,12 +41,14 @@ def visualize_example(pv_feature, pv_target, pred, hrv_feature):
     return wandb.Image(fig), wandb.Video(hrv_feature, fps=1, format="gif")
 
 normalizers = np.array([(-1.4087231368096667, 1.3890225067478146),
- (52.978670018652174, 1.4779275085314911),
- (31.545373449030897, 6.077633030692922),
- (3.017692725650799, 3.460296728623524),
- (178.186237936907, 47.040837795130464)])
-device = "cuda" if torch.cuda.is_available() else "cpu"
+                        (52.978670018652174, 1.4779275085314911),
+                        (31.545373449030897, 6.077633030692922),
+                        (3.017692725650799, 3.460296728623524),
+                        (178.186237936907, 47.040837795130464)])
+
+
 means, stds = torch.tensor(normalizers[:, 0], dtype=torch.float, device = device) , torch.tensor(normalizers[:, 1], dtype=torch.float, device = device)
+
 def site_normalize(vals):
     if keys.META.LATITUDE in vals:
         vals[keys.META.LATITUDE] = (vals[keys.META.LATITUDE] - means[0]) / stds[0]

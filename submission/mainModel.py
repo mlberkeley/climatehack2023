@@ -1,18 +1,10 @@
-from .util import util
+import util
+from modules.solar import solar_pos
 from submission.resnet import *
-from .util.modules import solar_pos
 import torchvision.models as models
 
-def _resnet(
-    #block: Type[Union[BasicBlock, Bottleneck]],
-    #layers: List[int],
-    #weights: Optional,
-    #progress: bool,
-    #inchannels: int = 12,
-    #**kwargs: Any,
-#) -> ResNet:
-block, layers, weights, progress, inchannels, **kwargs):
 
+def _resnet(block, layers, weights, progress, inchannels, **kwargs):
     model = ResNet(block, layers, inchannels=inchannels, **kwargs)
 
     if weights is not None:
