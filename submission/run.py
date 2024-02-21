@@ -53,6 +53,7 @@ class Evaluator(BaseEvaluator):
                         k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
                         for k in keys.META
                 }
+                meta_features[keys.META.TIME] = meta_features[keys.META.TIME] / 1e9
                 nonhrv_features = {
                         k: torch.from_numpy(nonhrv[..., k.value]).to(device)
                         for k in keys.NONHRV

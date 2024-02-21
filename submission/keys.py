@@ -16,7 +16,6 @@ class META(KeyEnum):
     ORIENTATION = auto()
     TILT = auto()
     KWP = auto()
-    SOLAR = auto()
 
 
 @unique
