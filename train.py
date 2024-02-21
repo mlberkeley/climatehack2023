@@ -1,29 +1,27 @@
 import os
 import sys
+from pathlib import Path
+
+from loguru import logger
+from datetime import datetime
+import math
+
+import wandb
+import argparse
+from config import get_config
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import wandb
-import argparse
-
 from torch.utils.data import DataLoader
 from torchinfo import summary
-from datetime import datetime
-
-import math
+from ema_pytorch import EMA
 
 from data.random_data import get_dataloaders
 import submission.keys as keys
 from submission.mainModel import MainModel2 as Model
-# from submission.convnext import ConvNextPV as Model
-# from submission.aggregate_model import Model as Model
-from config import get_config
 import submission.util
-from eval import eval
-from pathlib import Path
-from loguru import logger
-from ema_pytorch import EMA
 
 
 # INFO: setup
@@ -38,6 +36,47 @@ parser.add_argument('--opts', nargs='*', default=[], help='arguments to override
 args = parser.parse_args()
 
 config = get_config(args.config, args.opts)
+
+
+def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_truth_path=None):
+    model.eval()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    tot_loss_1h, tot_loss_4h, count = 0, 0, 0
+
+    gt = np.zeros((len(dataloader.dataset), 48))
+    preds = np.zeros((len(dataloader.dataset), 48))
+    with torch.no_grad():
+        for i, (pv_features, meta, nonhrv, weather, pv_targets) in enumerate(dataloader):
+            meta, nonhrv, weather = util.dict_to_device(meta), util.dict_to_device(nonhrv), util.dict_to_device(weather)
+            pv_features = pv_features.to(device, dtype=torch.float)
+            pv_targets = pv_targets.to(device, dtype=torch.float)
+
+            predictions = model(pv_features, meta, nonhrv, weather)
+
+            gt[i * dataloader.batch_size: (i + 1) * dataloader.batch_size] = pv_targets.cpu().numpy()
+            preds[i * dataloader.batch_size: (i + 1) * dataloader.batch_size] = predictions.cpu().numpy()
+
+            loss_1h = criterion(predictions[:, :12], pv_targets[:, :12])
+            loss_4h = criterion(predictions, pv_targets)
+
+            size = int(pv_targets.size(0))
+            tot_loss_1h += float(loss_1h) * size
+            tot_loss_4h += float(loss_4h) * size
+            count += size
+
+    model.train()
+
+    val_loss_1h = tot_loss_1h / count
+    val_loss_4h = tot_loss_4h / count
+
+    if preds_save_path is not None:
+        np.save(preds_save_path, preds)
+    if ground_truth_path is not None:
+        np.save(ground_truth_path, gt)
+
+    return val_loss_1h, val_loss_4h
+
 
 
 torch.autograd.set_detect_anomaly(True)
@@ -86,7 +125,6 @@ wandb.init(
     group=args.run_group,
 )
 
-# INFO: train
 ema = EMA(
     model,
     beta = 0.999,               # exponential moving average factor
@@ -101,6 +139,7 @@ val_loss_1h, val_loss_4h = eval(eval_dataloader, model)
 ema_loss_1h, ema_loss_4h = eval(eval_dataloader, ema)
 min_val_loss = val_loss_4h
 min_ema_loss = val_loss_4h
+
 
 for epoch in range(config.train.num_epochs):
     logger.info(f"[{datetime.now()}]: Epoch {epoch + 1}")
