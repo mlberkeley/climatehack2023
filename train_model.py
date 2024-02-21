@@ -41,6 +41,7 @@ config = get_config(args.config, args.opts)
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+os.makedirs('ckpts', exist_ok=True)
 save_path = f'ckpts/{args.run_name}.pt'
 if Path(save_path).exists() or Path(save_path + '.best').exists():
     logger.error(f"Model save path {save_path} already exists, exiting. ")
