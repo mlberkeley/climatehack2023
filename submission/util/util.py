@@ -1,7 +1,42 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import wandb
 import torch
-import torch.nn.functional as F
-import keys
+import submission.keys as keys
+import sys
+from loguru import logger
+
+#logger.remove(0)
+logger.add(sys.stderr, format=\
+        "<green>{time:HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{file}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+)
+
+# TODO  have one util file... this is a mess
+
+def to_np(a):
+    return a.detach().cpu().numpy()
+
+
+def visualize_example(pv_feature, pv_target, pred, hrv_feature):
+    pv_feature = to_np(pv_feature)
+    pv_target = to_np(pv_target)
+    pred = to_np(pred)
+    hrv_feature = to_np(hrv_feature * 255).astype(np.uint8)
+    hrv_feature = hrv_feature.reshape(12, 1, 128, 128).repeat(3, axis=1)
+
+    fig, ax = plt.subplots()
+
+    ax.plot(np.arange(0, 12), pv_feature, color='black', label="features")
+    ax.plot(np.arange(12, 60), pv_target, color='green', label="target")
+    ax.plot(np.arange(12, 60), pred, color='red', label="prediction")
+    ax.plot([11,12], [pv_feature[-1], pv_target[0]], color='black')
+
+    ax.legend()
+    plt.tight_layout()
+
+    return wandb.Image(fig), wandb.Video(hrv_feature, fps=1, format="gif")
 
 normalizers = np.array([(-1.4087231368096667, 1.3890225067478146),
  (52.978670018652174, 1.4779275085314911),
@@ -9,14 +44,7 @@ normalizers = np.array([(-1.4087231368096667, 1.3890225067478146),
  (3.017692725650799, 3.460296728623524),
  (178.186237936907, 47.040837795130464)])
 device = "cuda" if torch.cuda.is_available() else "cpu"
-means, stds = torch.tensor(
-        normalizers[:, 0],
-        dtype=torch.float, device = device
-    ), torch.tensor(
-        normalizers[:, 1],
-        dtype=torch.float, device = device
-    )
-
+means, stds = torch.tensor(normalizers[:, 0], dtype=torch.float, device = device) , torch.tensor(normalizers[:, 1], dtype=torch.float, device = device)
 def site_normalize(vals):
     if keys.META.LATITUDE in vals:
         vals[keys.META.LATITUDE] = (vals[keys.META.LATITUDE] - means[0]) / stds[0]
@@ -36,59 +64,5 @@ def site_normalize(vals):
     #mean, std = norms[val_type]
     #return (val * std) + mean
 
-
-
-def shift_images(images, shift_x, shift_y):
-    """
-    Shift a batch of images in PyTorch tensor format.
-
-    Args:
-    - images (torch.Tensor): Batch of input images with shape (batch_size, channels, height, width)
-    - shift_x (int): Number of pixels to shift in the horizontal direction
-    - shift_y (int): Number of pixels to shift in the vertical direction
-
-    Returns:
-    - shifted_images (torch.Tensor): Batch of shifted images with the same shape as input images
-    """
-
-    batch_size, channels, height, width = images.size()
-
-    # Create an output tensor to store shifted images
-    shifted_images = torch.zeros_like(images)
-
-    # Calculate the boundaries for cropping and filling
-    crop_left = max(0, -shift_x)
-    crop_right = max(0, shift_x)
-    crop_top = max(0, -shift_y)
-    crop_bottom = max(0, shift_y)
-
-    fill_left = max(0, shift_x)
-    fill_right = max(0, -shift_x)
-    fill_top = max(0, shift_y)
-    fill_bottom = max(0, -shift_y)
-
-    # Shift images using torch.roll function
-    shifted_images = torch.roll(images, shifts=(shift_y, shift_x), dims=(2, 3))
-
-    # Crop and fill the shifted areas
-    if crop_left > 0:
-        shifted_images[:, :, :, :crop_left] = 0  # Fill left
-    elif fill_left > 0:
-        shifted_images[:, :, :, -fill_left:] = 0  # Fill left
-
-    if crop_right > 0:
-        shifted_images[:, :, :, -crop_right:] = 0  # Fill right
-    elif fill_right > 0:
-        shifted_images[:, :, :, :fill_right] = 0  # Fill right
-
-    if crop_top > 0:
-        shifted_images[:, :, :crop_top, :] = 0  # Fill top
-    elif fill_top > 0:
-        shifted_images[:, :, -fill_top:, :] = 0  # Fill top
-
-    if crop_bottom > 0:
-        shifted_images[:, :, -crop_bottom:, :] = 0  # Fill bottom
-    elif fill_bottom > 0:
-        shifted_images[:, :, :fill_bottom, :] = 0  # Fill bottom
-
-    return shifted_images
+def dict_to_device(d):
+    return {k: v.to(device, dtype=torch.float) for k, v in d.items()}

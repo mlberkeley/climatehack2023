@@ -1,6 +1,6 @@
 from .sunincidence import siteinfo2projectdata, getSolarPosition
 from datetime import datetime
-from submission.resnet import *
+from resnet import *
 
 def solar_pos(site_features, device):
     meta_keys = [

@@ -1,15 +1,17 @@
-from util import util
+from .util import util
 from submission.resnet import *
-from util.modules import solar_pos
+from .util.modules import solar_pos
+import torchvision.models as models
 
 def _resnet(
-    block: Type[Union[BasicBlock, Bottleneck]],
-    layers: List[int],
-    weights: Optional,
-    progress: bool,
-    inchannels: int = 12,
-    **kwargs: Any,
-) -> ResNet:
+    #block: Type[Union[BasicBlock, Bottleneck]],
+    #layers: List[int],
+    #weights: Optional,
+    #progress: bool,
+    #inchannels: int = 12,
+    #**kwargs: Any,
+#) -> ResNet:
+block, layers, weights, progress, inchannels, **kwargs):
 
     model = ResNet(block, layers, inchannels=inchannels, **kwargs)
 
@@ -38,8 +40,11 @@ class NonHRVMeta(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
-        self.resnet_backbone = _resnet(BasicBlock, [2, 2, 2, 2], None, True, inchannels=12)
-        self.linear1 = nn.Linear(512 * BasicBlock.expansion + 12 + 5, 48 * 4)
+        self.resnet_backbone = models.resnet18()
+        self.resnet_backbone.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.resnet_backbone.fc = nn.Identity()
+
+        self.linear1 = nn.Linear(self.resnet_backbone.fc.in_features + 12 + 5, 48 * 4)
         self.linear2 = nn.Linear(48 * 4, 48)
         self.lin0 = nn.Linear(12 + 5, 12 + 5)
         self.r = nn.ReLU(inplace=True)
@@ -66,12 +71,13 @@ class NonHRVMeta(nn.Module):
 
 
 class NonHRVBackbone(nn.Module):
-    block_type = BasicBlock
-    output_dim = 512 * block_type.expansion
+    output_dim = models.resnet18().fc.in_features
     def __init__(self) -> None:
         super().__init__()
 
-        self.resnet_backbone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
+        self.resnet_backbone = models.resnet18()
+        self.resnet_backbone.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.resnet_backbone.fc = nn.Identity()
         #self.r = nn.LeakyReLU(inplace=True)
 
     def forward(self, nonhrv):
@@ -101,15 +107,16 @@ class MetaAndPv(nn.Module):
         return x
 
 class WeatherBackbone(nn.Module):
-    block_type = BasicBlock
-    output_dim = 512 * block_type.expansion
+    output_dim = models.resnet18().fc.in_features
     def __init__(self, channels=1) -> None:
         super().__init__()
 
         #self.input_dim = (6*channels, 128, 128)
         self.input_dim = (128, 128)
 
-        self.weather_bone = _resnet(BasicBlock, [3, 4, 6, 3], None, True)
+        self.weather_bone = models.resnet18()
+        self.resnet_backbone.fc = nn.Identity()
+
         self.weather_bone.conv1 = nn.Conv2d(6, 64, kernel_size=7, stride=2, padding=3, bias=False)
         #6 because 6 hours (default is 12 in resnet), 64 because inplanes (weather_bone.inplanes was breaking batchnorm for some reason)
 
@@ -181,11 +188,15 @@ class MainModel2(nn.Module):
         #self.WeatherBackbones = nn.ModuleList([WeatherBackbone() for i in range(len(self.REQUIRED_WEATHER))])
         #self.NonHRVBackbones = nn.ModuleList([NonHRVBackbone() for i in range(len(self.REQUIRED_NONHRV))])
 
-        self.WeatherBackbones = nn.ModuleList([_resnet(BasicBlock, [3,4,6,3], None, True) for i in range(len(self.REQUIRED_WEATHER))])
+        self.WeatherBackbones = nn.ModuleList([models.resnet18() for i in range(len(self.REQUIRED_WEATHER))])
         for bone in self.WeatherBackbones:
             bone.conv1 = nn.Conv2d(6, 64, kernel_size=7, stride=2, padding=3, bias=False)
+            bone.fc = nn.Identity()
 
-        self.NonHRVBackbones = nn.ModuleList([_resnet(BasicBlock, [3,4,6,3], None, True) for i in range(len(self.REQUIRED_NONHRV))])
+        self.NonHRVBackbones = nn.ModuleList([models.resnet18() for i in range(len(self.REQUIRED_NONHRV))])
+        for bone in self.NonHRVBackbones:
+            bone.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3, bias=False)
+            bone.fc = nn.Identity()
 
 
         if len(self.REQUIRED_META):
@@ -211,7 +222,9 @@ class MainModel2(nn.Module):
         else:
             feat3 = pv
 
-        all_feat = torch.concat([feat1, feat2, feat3, solar_pos(site_features, device="cuda")], dim=-1)
+        solar_data = solar_pos(site_features, device="cuda")
+
+        all_feat = torch.concat([feat1, feat2, feat3, solar_data], dim=-1)
 
         x = self.r(self.linear1(all_feat))
         x = torch.sigmoid(self.linear2(x))
