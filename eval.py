@@ -8,7 +8,6 @@ from loguru import logger
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 
 
 def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_truth_path=None):

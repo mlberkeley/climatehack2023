@@ -23,7 +23,7 @@ def rad2deg(rad):
     return deg
     
 # FUNCTION: get solar position data
-def getSolarPosition(t, project_data):
+def getSolarPosition(t, project_data, return_datum=False):
 
     # Get solar position from lat/lng, elevation and datetime
     phi, theta_h, rasc, d, h = sunpos(t, project_data['latitude'], project_data['longitude'], project_data['elevation'])[:5]
@@ -41,20 +41,21 @@ def getSolarPosition(t, project_data):
     beta = 90.0 - theta_h
     
     # Calculate incident angle to surface
-    theta = math.acos((math.cos(deg2rad(beta)) * math.cos(deg2rad(gamma)) * math.sin(deg2rad(eta))) + (math.sin(deg2rad(beta)) * math.cos(deg2rad(eta))))
+    incident_rad = math.acos((math.cos(deg2rad(beta)) * math.cos(deg2rad(gamma)) * math.sin(deg2rad(eta))) + (math.sin(deg2rad(beta)) * math.cos(deg2rad(eta))))
     
     # Solar position datum
-    # sp_datum = {
-    #     'Datetime_UTC': t,
-    #     'Azimuth': phi,
-    #     'Zenith': theta_h,
-    #     'RightAscension': rasc,
-    #     'Declination': d,
-    #     'HourAngle': h,
-    #     'IncidentAngle': theta
-    # }
-
-    return np.deg2rad(theta_h), theta
+    zenith_rad = np.deg2rad(theta_h)
+    if return_datum:
+        return {
+            'Datetime_UTC': t,
+            'Azimuth': phi,
+            'Zenith': zenith_rad,
+            'RightAscension': rasc,
+            'Declination': d,
+            'HourAngle': h,
+            'IncidentAngle': incident_rad 
+        }
+    return zenith_rad, incident_rad
     
     # return sp_datum
 
@@ -72,11 +73,11 @@ def siteinfo2projectdata(lat, long, orientation, tilt, interval=5):
     }
 
 
-def siteinfo2incidence(timestamp, lat, long, orientation, tilt):
-    return getSolarPosition(timestamp, siteinfo2incidence(lat, long, orientation, tilt))['IncidentAngle']
+def siteinfo2incidence(timestamp, lat, long, orientation, tilt, return_datum=False):
+    return getSolarPosition(timestamp, siteinfo2incidence(lat, long, orientation, tilt), return_datum=return_datum)['IncidentAngle']
         
 # FUNCTION: loop through timestamp array, calculate solar position
-def loopSolarPositionByProject(start: datetime.datetime, end: datetime.datetime, project_data):
+def loopSolarPositionByProject(start: datetime.datetime, end: datetime.datetime, project_data, return_datum=False):
 
     # Solar position data array
     sp_data = []
@@ -93,7 +94,7 @@ def loopSolarPositionByProject(start: datetime.datetime, end: datetime.datetime,
         # Print timestamp
         #print dt.strftime("%Y-%m-%dT%H:%M")
         
-        sp_datum = getSolarPosition(dt, project_data)
+        sp_datum = getSolarPosition(dt, project_data, return_datum=return_datum)
         
         # Add solar position datum to data array
         sp_data.append(sp_datum)
@@ -123,13 +124,13 @@ def get_day_plot(day: datetime.date, project_data):
     print('Looping through solar position calcs...')
     start = datetime.datetime.combine(day, datetime.time(0, 0))
     end = start + datetime.timedelta(days=1)
-    sp_data = loopSolarPositionByProject(start, end, project_data)
+    sp_data = loopSolarPositionByProject(start, end, project_data, return_datum=True)
     print('Done!')
 
     o_datetime_utc = [x['Datetime_UTC'] for x in sp_data]        
     o_azimuth = [x['Azimuth'] for x in sp_data]        
-    o_zenith = [x['Zenith'] for x in sp_data]        
-    o_incident_angle = [x['IncidentAngle'] for x in sp_data]
+    o_zenith = [np.rad2deg(x['Zenith']) for x in sp_data]
+    o_incident_angle = [np.rad2deg(x['IncidentAngle']) for x in sp_data]
 
     title = 'Solar Incident Angle @ (' + str(project_data['latitude']) + ',' + str(project_data['longitude']) + ')'
     title += '\nTilt (Horizontal): ' + str(project_data['tilt']) + ' deg, Azimuth (South CC): ' + str(project_data['azimuth']) + ' deg @ Elevation: ' + str(project_data['elevation']) + ' m'
@@ -169,12 +170,12 @@ def day_plot_with_pv(day: datetime.date, project_data, pv_data):
     print('Looping through solar position calcs...')
     start = datetime.datetime.combine(day, datetime.time(0, 0))
     end = start + datetime.timedelta(days=1)
-    sp_data = loopSolarPositionByProject(start, end, project_data)
+    sp_data = loopSolarPositionByProject(start, end, project_data, return_datum=True)
     print('Done!')
 
-    o_datetime_utc = [x['Datetime_UTC'] for x in sp_data]        
-    o_zenith = [x['Zenith'] for x in sp_data]        
-    o_incident_angle = [x['IncidentAngle'] for x in sp_data]
+    o_datetime_utc = [x['Datetime_UTC'] for x in sp_data]
+    o_zenith = [np.rad2deg(x['Zenith']) for x in sp_data]
+    o_incident_angle = [np.rad2deg(x['IncidentAngle']) for x in sp_data]
 
     title = 'Solar Incident Angle @ (' + str(project_data['latitude']) + ',' + str(project_data['longitude']) + ')'
     title += '\nTilt (Horizontal): ' + str(project_data['tilt']) + ' deg, Azimuth (South CC): ' + str(project_data['azimuth']) + ' deg @ Elevation: ' + str(project_data['elevation']) + ' m'
