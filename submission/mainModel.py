@@ -205,10 +205,12 @@ class MainModel2(nn.Module):
             feat1 = torch.concat([self.NonHRVBackbones[i](nonhrv[key]) for i, key in enumerate(self.REQUIRED_NONHRV)], dim=-1)
         else:
             feat1 = torch.Tensor([]).to("cuda")
+
         if len(self.REQUIRED_WEATHER):
             feat2 = torch.concat([self.WeatherBackbones[i](weather[key]) for i, key in enumerate(self.REQUIRED_WEATHER)], dim=-1)
         else:
             feat2 = torch.Tensor([]).to("cuda")
+
         if len(self.REQUIRED_META):
             feat3 = self.MetaAndPv(pv, site_features)
         else:
