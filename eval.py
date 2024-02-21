@@ -1,7 +1,7 @@
 from config import get_config
 from data.random_data import get_dataloaders
 from submission.resnet import ResNetPV as Model
-from util import util
+import submission.util
 
 import argparse
 from loguru import logger

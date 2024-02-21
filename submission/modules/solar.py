@@ -27,7 +27,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from resnet import *
+from ..resnet import *
 
 def solar_pos(site_features, device):
     meta_keys = [

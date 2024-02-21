@@ -19,7 +19,7 @@ from submission.mainModel import MainModel2 as Model
 # from submission.convnext import ConvNextPV as Model
 # from submission.aggregate_model import Model as Model
 from config import get_config
-from util import util
+import submission.util
 from eval import eval
 from pathlib import Path
 from loguru import logger

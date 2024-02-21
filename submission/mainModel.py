@@ -1,5 +1,5 @@
-import util
-from modules.solar import solar_pos
+import submission.util
+from submission.modules.solar import solar_pos
 from submission.resnet import *
 import torchvision.models as models
 
