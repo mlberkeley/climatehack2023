@@ -1,5 +1,6 @@
 from enum import IntEnum, auto, unique
 
+
 class KeyEnum(IntEnum):
     @classmethod
     def from_str(cls, key: str):
@@ -7,6 +8,7 @@ class KeyEnum(IntEnum):
             if k.name == key:
                 return k
         raise KeyError(f'Key {key} not found in {cls.__name__}')
+
 
 @unique
 class META(KeyEnum):
@@ -16,6 +18,11 @@ class META(KeyEnum):
     ORIENTATION = auto()
     TILT = auto()
     KWP = auto()
+
+
+@unique
+class HRV(KeyEnum):
+    HRV = 0
 
 
 @unique
@@ -75,7 +82,8 @@ class WEATHER(KeyEnum):
     Z0 = auto()
 
 
-class AIR_QUALITY(KeyEnum):
+@unique
+class AEROSOLS(KeyEnum):
     CO_CONC = 0
     DUST = auto()
     NH3_CONC = auto()
@@ -92,6 +100,7 @@ class AIR_QUALITY(KeyEnum):
 
 
 # cheats for model training
+@unique
 class FUTURE(KeyEnum):
     NONHRV = 0
 
@@ -135,4 +144,21 @@ WEATHER_RANGES = {
     WEATHER.W_SNOW: (0.0, 1422.0),
     WEATHER.WW: (0, 100),
     WEATHER.Z0: (0, 1.0)
+}
+
+
+AEROSOLS_RANGES = {
+    AEROSOLS.CO_CONC: (0.0, 0.5),
+    AEROSOLS.DUST: (0.0, 0.5),
+    AEROSOLS.NH3_CONC: (0.0, 0.5),
+    AEROSOLS.NMVOC_CONC: (0.0, 0.5),
+    AEROSOLS.NO2_CONC: (0.0, 0.5),
+    AEROSOLS.NO_CONC: (0.0, 0.5),
+    AEROSOLS.O3_CONC: (0.0, 0.5),
+    AEROSOLS.PANS_CONC: (0.0, 0.5),
+    AEROSOLS.PM10_CONC: (0.0, 0.5),
+    AEROSOLS.PM2P5_CONC: (0.0, 0.5),
+    AEROSOLS.PMWF_CONC: (0.0, 0.5),
+    AEROSOLS.SIA_CONC: (0.0, 0.5),
+    AEROSOLS.SO2_CONC: (0.0, 0.5)
 }

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset
 import pickle
 import h5py
@@ -17,7 +18,6 @@ from tqdm import tqdm
 
 # Think about whether all channels need to be flipped together or not
 TRAIN_TRANSFORM = transforms.Compose([
-    transforms.ToTensor(),
     # transforms.RandomErasing(p=0.25, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=True),
     # transforms.RandomHorizontalFlip(p=0.5),
     # # transforms.RandomVerticalFlip(p=0.5),
@@ -106,7 +106,7 @@ class ClimatehackDataset(Dataset):
         self.nonhrv_features = nonhrv_features
         self.weather_features = weather_features
         self.require_future_nonhrv = keys.FUTURE.NONHRV in future_features if future_features else False
-        self.transform = transform if transform is not None else transforms.ToTensor()
+        self.transform = transform if transform is not None else nn.Identity()
 
         self.meta = pd.read_csv("/data/climatehack/official_dataset/pv/meta.csv")
 
@@ -138,6 +138,7 @@ class ClimatehackDataset(Dataset):
                 start_date,
                 end_date,
         )
+        self.nonhrv.setflags(write=False)
         logger.debug(f"Loaded nonhrv in {datetime.now() - start_time}")
 
         # weather
@@ -149,6 +150,7 @@ class ClimatehackDataset(Dataset):
                 start_date,
                 end_date,
         )
+        self.weather.setflags(write=False)
         logger.debug(f"Loaded weather in {datetime.now() - start_time}")
 
         # TODO move this to data.h5
@@ -252,10 +254,8 @@ class ClimatehackDataset(Dataset):
         # nonhrv.shape = (channels, num_hours, hour, y, x) = (11, *, 12, 293, 333)
         # nonhrv_out_raw.shape = (len(nonhrv_keys), 12, 128, 128)
         nonhrv_out_raw = nonhrv_out_raw.astype(np.float32) / 255
-        # toTensor expects (C, H, W) but we have (H, W, C)
-        nonhrv_out_raw = np.swapaxes(nonhrv_out_raw, 1, -1)
         nonhrv_out = {
-            key: self.transform(nonhrv_out_raw[i])
+            key: self.transform(torch.from_numpy(nonhrv_out_raw[i]))
             for i, key in enumerate(self.nonhrv_features)
         }
 
@@ -263,7 +263,6 @@ class ClimatehackDataset(Dataset):
         x, y = self.site_locations['weather'][site]
         weather_ind = self.weather_time_map[timestamp]
         weather_out_raw = self.weather[
-                # [ch.value for ch in self.weather_features], # XXX
                 :,
                 weather_ind - 1:weather_ind + 5,
                 y - 64:y + 64,
@@ -272,10 +271,8 @@ class ClimatehackDataset(Dataset):
         # weather.shape = (channels, num_hours, y, x) = (38, *, 305, 289)
         # weather_out_raw.shape = (len(weather_keys), 6, 128, 128)
         weather_out_raw = weather_out_raw.astype(np.float32) / 255
-        # toTensor expects (C, H, W) but we have (H, W, C)
-        weather_out_raw = np.swapaxes(weather_out_raw, 1, -1)
         weather_out = {
-            key: self.transform(weather_out_raw[i])
+            key: self.transform(torch.from_numpy(weather_out_raw[i]))
             for i, key in enumerate(self.weather_features)
         }
 

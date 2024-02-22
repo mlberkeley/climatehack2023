@@ -7,7 +7,7 @@ import h5py
 import torch
 
 from competition import BaseEvaluator
-from models import ResNetPV as Model
+from submission.models import MainModel2 as Model
 import numpy as np
 import util as util
 import keys as keys
@@ -21,7 +21,7 @@ class Evaluator(BaseEvaluator):
         """Sets up anything required for evaluation, e.g. loading a model."""
 
         self.model = Model(dict(channel='VIS008')).to(device)
-        self.model.load_state_dict(torch.load("resnext50_aug_v2.pt.best", map_location=device))
+        self.model.load_state_dict(torch.load("here comes the sun.pt.best_ema", map_location=device))
         self.model.eval()
 
     def predict(self, features: h5py.File):
@@ -41,9 +41,10 @@ class Evaluator(BaseEvaluator):
             for data_batch in self.batch(
                     features,
                     variables=[
-                        "pv", "nonhrv",
+                        'pv', 'hrv', 'nonhrv',
                     ] + [e.name.lower() for e in keys.META]
-                      + [e.name.lower() for e in keys.WEATHER],
+                      + [e.name.lower() for e in keys.WEATHER]
+                      + [e.name.lower() for e in keys.AEROSOLS],
                     batch_size=32
                 ):
                 # Produce solar PV predictions for this batch
@@ -53,19 +54,24 @@ class Evaluator(BaseEvaluator):
                         k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
                         for k in keys.META
                 }
-                meta_features[keys.META.TIME] = meta_features[keys.META.TIME] / 1e9
+                meta_features[keys.META.TIME] = meta_features[keys.META.TIME] / 1e9 # nanos to seconds
                 nonhrv_features = {
-                        k: torch.from_numpy(nonhrv[..., k.value]).to(device)
+                        k: torch.from_numpy(nonhrv[..., k]).to(device)
                         for k in keys.NONHRV
                 }
                 weather_features = {
                         k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
                         for k in keys.WEATHER
                 }
+                aerosol_features = {
+                        k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
+                        for k in keys.AEROSOLS
+                }
 
                 # INFO  this is ugly; but that's okay
                 for k in keys.WEATHER:
                     weather_features[k] = (weather_features[k] - keys.WEATHER_RANGES[k][0]) / (keys.WEATHER_RANGES[k][1] - keys.WEATHER_RANGES[k][0])
+                # TODO  normalize aerosol features
                 # this normalization is currently done in model
                 # needs to stay in model so that we don't have to do it here.. perhaps?
                 # site_features = util.site_normalize(torch.from_numpy(site_features).to(device))

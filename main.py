@@ -245,7 +245,7 @@ if __name__ == "__main__":
     else:
         # INFO: eval
         model = Model(config.model.config).to(device)
-        model.load_state_dict(torch.load(f'{args.name}'))
+        model.load_state_dict(torch.load(f'{args.run_name}'))
         model.eval()
         dataloader = get_dataloaders(
             config=config,
@@ -255,5 +255,8 @@ if __name__ == "__main__":
             future_features=None,
             load_train=False,
         )
-        val_loss_1h, val_loss_4h = eval(dataloader, model, preds_save_path=args.output, ground_truth_path=args.ground_truth)
+        val_loss_1h, val_loss_4h = eval(
+                dataloader, model,
+                # preds_save_path=args.output, ground_truth_path=args.ground_truth
+        )
         logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}")
