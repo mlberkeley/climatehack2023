@@ -27,9 +27,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from ..models import *
+import torch
+import sys
+sys.path.append("..")
+import keys as keys
 from datetime import datetime
 import numpy as np
+import math
 
 def solar_pos(site_features, device):
     meta_keys = [

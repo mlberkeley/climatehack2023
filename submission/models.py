@@ -4,9 +4,16 @@ import torch.nn as nn
 from torch import Tensor
 import torchvision.models as models
 
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
+
 from modules.solar import solar_pos
+
 import keys as keys
 import util as util
+
 
 
 class ResNetPV(nn.Module):
@@ -197,8 +204,6 @@ class WeatherBackbone(nn.Module):
         #x = self.r(x)
         return x
 
-
-# TODO: move to modules
 class MetaAndPv5(nn.Module):
 
     output_dim = 30
@@ -223,6 +228,7 @@ class MetaAndPv5(nn.Module):
         x = self.linear1(torch.concat([meta, pv], dim=-1))
         x = self.r(x)
         return x
+
 
 
 
