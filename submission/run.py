@@ -41,10 +41,10 @@ class Evaluator(BaseEvaluator):
             for data_batch in self.batch(
                     features,
                     variables=[
-                        'pv', 'hrv', 'nonhrv',
+                        'pv', 'nonhrv',
                     ] + [e.name.lower() for e in keys.META]
-                      + [e.name.lower() for e in keys.WEATHER]
-                      + [e.name.lower() for e in keys.AEROSOLS],
+                      + [e.name.lower() for e in self.model.REQUIRED_WEATHER],
+                      # + [e.name.lower() for e in keys.AEROSOLS],
                     batch_size=32
                 ):
                 # Produce solar PV predictions for this batch
@@ -56,20 +56,20 @@ class Evaluator(BaseEvaluator):
                 }
                 meta_features[keys.META.TIME] = meta_features[keys.META.TIME] / 1e9 # nanos to seconds
                 nonhrv_features = {
-                        k: torch.from_numpy(nonhrv[..., k]).to(device)
-                        for k in keys.NONHRV
+                        k: torch.from_numpy(nonhrv[..., k].transpose(0, 1, 3, 2)).to(device)
+                        for k in self.model.REQUIRED_NONHRV
                 }
                 weather_features = {
                         k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
-                        for k in keys.WEATHER
+                        for k in self.model.REQUIRED_WEATHER
                 }
-                aerosol_features = {
-                        k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
-                        for k in keys.AEROSOLS
-                }
+                # aerosol_features = {
+                #         k : torch.from_numpy(data_batch[k.name.lower()]).to(device)
+                #         for k in keys.AEROSOLS
+                # }
 
                 # INFO  this is ugly; but that's okay
-                for k in keys.WEATHER:
+                for k in self.model.REQUIRED_WEATHER:
                     weather_features[k] = (weather_features[k] - keys.WEATHER_RANGES[k][0]) / (keys.WEATHER_RANGES[k][1] - keys.WEATHER_RANGES[k][0])
                 # TODO  normalize aerosol features
                 # this normalization is currently done in model
