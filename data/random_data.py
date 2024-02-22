@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset
 import pickle
 import h5py
-from submission.util import util
+import submission.util
 import submission.keys as keys
 from loguru import logger
 from easydict import EasyDict

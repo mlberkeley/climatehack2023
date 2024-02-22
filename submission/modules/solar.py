@@ -1,3 +1,10 @@
+# NOTE: References
+# Solar Position Code...https://github.com/s-bear/sun-position
+# Solar Position Concepts...http://www.me.umn.edu/courses/me4131/LabManual/AppDSolarRadiation.pdf
+# Data Validation...https://www.nrel.gov/midc/solpos/solpos.html
+
+
+# NOTE: Original license of sunposition.py
 # The MIT License (MIT)
 #
 # Copyright (c) 2016 Samuel Bear Powell
@@ -20,9 +27,132 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import numpy as np
+import torch
+import sys
+sys.path.append("..")
+import keys as keys
 from datetime import datetime
+import numpy as np
+import math
 
+def solar_pos(site_features, device):
+    meta_keys = [
+        keys.META.TIME,
+        keys.META.LATITUDE,
+        keys.META.LONGITUDE,
+        keys.META.ORIENTATION,
+        keys.META.TILT,
+    ]
+
+    meta = torch.stack([site_features[key] for key in meta_keys], dim=1)
+    sun_pos = np.zeros((meta.shape[0], 2))
+
+    for i, batch in enumerate(meta):
+        if not batch[0]:
+            return torch.Tensor([[0, 0]]).to(device)
+
+        proj = get_solar_info(batch[1].cpu(), batch[2].cpu(), batch[3].cpu(), batch[4].cpu())
+
+        timestamp_dt = datetime.utcfromtimestamp(batch[0].cpu().item())
+        zenith, incident = get_solar_pos(t=timestamp_dt, project_data=proj)
+
+        sun_pos[i, 0] = zenith
+        sun_pos[i, 1] = incident
+
+    return torch.from_numpy(sun_pos).float().to(device)
+
+
+# INFO: two helper functions, get_solar_pos and get_solar_info
+def get_solar_pos(t, project_data, return_datum=False):
+    phi, theta_h, rasc, d, h = sunpos(t, project_data['latitude'], project_data['longitude'], project_data['elevation'])[:5]
+    eta = 90 - project_data['tilt']
+    gamma = math.fabs((phi - project_data['azimuth']))
+
+    if project_data['zenith_filter'] and theta_h > project_data['zenith_limit']:
+        theta_h = project_data['zenith_limit']
+
+    beta = 90.0 - theta_h
+
+    incident_rad = math.acos((math.cos(np.deg2rad(beta)) * math.cos(np.deg2rad(gamma)) * math.sin(np.deg2rad(eta))) + (math.sin(np.deg2rad(beta)) * math.cos(np.deg2rad(eta))))
+
+    zenith_rad = np.deg2rad(theta_h)
+
+    if return_datum:
+        return {
+            'Datetime_UTC': t,
+            'Azimuth': phi,
+            'Zenith': zenith_rad,
+            'RightAscension': rasc,
+            'Declination': d,
+            'HourAngle': h,
+            'IncidentAngle': incident_rad 
+        }
+
+    return zenith_rad, incident_rad  # only get zenith and incident
+
+
+def get_solar_info(lat, long, orientation, tilt, interval=5):
+    return {
+        'latitude': lat,
+        'longitude': long,
+        'elevation': 0,
+        'tilt': tilt,
+        'azimuth': orientation,
+        'zenith_limit': 90,
+        'zenith_filter': False,
+        'interval': interval
+    }
+
+
+def sunpos(dt, latitude, longitude, elevation, temperature=None, pressure=None, delta_t=0, radians=False):
+    """Compute the observed and topocentric coordinates of the sun as viewed at the given time and location.
+
+    Parameters
+    ----------
+    dt : array_like
+        UTC datetime objects or UTC timestamps (as per datetime.utcfromtimestamp) representing the times of observations
+    latitude, longitude : array_like
+        decimal degrees, positive for north of the equator and east of Greenwich
+    elevation : array_like
+        meters, relative to the WGS-84 ellipsoid
+    temperature : array_like or None, optional
+        celcius, default is 14.6 (global average in 2013)
+    pressure : array_like or None, optional
+        millibar, default is 1013 (global average in ??)
+    delta_t : array_like, optional
+        seconds, default is 0, difference between the earth's rotation time (TT) and universal time (UT)
+    radians : {True, False}, optional
+        return results in radians if True, degrees if False (default)
+
+    Returns
+    -------
+    coords : ndarray, (...,5)
+        The shape of the array is parameters broadcast together, plus a final dimension for the coordinates.
+        coords[...,0] = observed azimuth angle, measured eastward from north
+        coords[...,1] = observed zenith angle, measured down from vertical
+        coords[...,2] = topocentric right ascension
+        coords[...,3] = topocentric declination
+        coords[...,4] = topocentric hour angle
+    """
+
+    if temperature is None:
+        temperature = 14.6
+    if pressure is None:
+        pressure = 1013
+
+    #6367444 = radius of earth
+    b = np.broadcast(dt,latitude,longitude,elevation,temperature,pressure,delta_t)
+    res = np.empty(b.shape+(5,))
+    res_vec = res.reshape((-1,5))
+    for i,x in enumerate(b):
+        res_vec[i] = _sp.pos(*x)
+    if radians:
+        res = np.deg2rad(res)
+
+    return res
+
+
+# INFO: magic (see references + original license)
 class _sp:
     @staticmethod
     def calendar_time(dt):
@@ -553,102 +683,3 @@ def topocentric_sunpos(dt, latitude, longitude, temperature=None, pressure=None,
     if radians:
         res = np.deg2rad(res)
     return res
-
-def sunpos(dt, latitude, longitude, elevation, temperature=None, pressure=None, delta_t=0, radians=False):
-    """Compute the observed and topocentric coordinates of the sun as viewed at the given time and location.
-
-    Parameters
-    ----------
-    dt : array_like
-        UTC datetime objects or UTC timestamps (as per datetime.utcfromtimestamp) representing the times of observations
-    latitude, longitude : array_like
-        decimal degrees, positive for north of the equator and east of Greenwich
-    elevation : array_like
-        meters, relative to the WGS-84 ellipsoid
-    temperature : array_like or None, optional
-        celcius, default is 14.6 (global average in 2013)
-    pressure : array_like or None, optional
-        millibar, default is 1013 (global average in ??)
-    delta_t : array_like, optional
-        seconds, default is 0, difference between the earth's rotation time (TT) and universal time (UT)
-    radians : {True, False}, optional
-        return results in radians if True, degrees if False (default)
-
-    Returns
-    -------
-    coords : ndarray, (...,5)
-        The shape of the array is parameters broadcast together, plus a final dimension for the coordinates.
-        coords[...,0] = observed azimuth angle, measured eastward from north
-        coords[...,1] = observed zenith angle, measured down from vertical
-        coords[...,2] = topocentric right ascension
-        coords[...,3] = topocentric declination
-        coords[...,4] = topocentric hour angle
-    """
-
-    if temperature is None:
-        temperature = 14.6
-    if pressure is None:
-        pressure = 1013
-
-    #6367444 = radius of earth
-    #numpy broadcasting
-    b = np.broadcast(dt,latitude,longitude,elevation,temperature,pressure,delta_t)
-    res = np.empty(b.shape+(5,))
-    res_vec = res.reshape((-1,5))
-    for i,x in enumerate(b):
-        res_vec[i] = _sp.pos(*x)
-    if radians:
-        res = np.deg2rad(res)
-    return res
-
-def main(args):
-    az, zen, ra, dec, h = sunpos(args.t, args.lat, args.lon, args.elev, args.temp, args.p, args.dt, args.rad)
-    if args.csv:
-        #machine readable
-        print('{t}, {dt}, {lat}, {lon}, {elev}, {temp}, {p}, {az}, {zen}, {ra}, {dec}, {h}'.format(t=args.t, dt=args.dt, lat=args.lat, lon=args.lon, elev=args.elev,temp=args.temp, p=args.p,az=az, zen=zen, ra=ra, dec=dec, h=h))
-    else:
-        dr='deg'
-        if args.rad:
-            dr='rad'
-        print("Computing sun position at T = {t} + {dt} s".format(t=args.t, dt=args.dt))
-        print("Lat, Lon, Elev = {lat} deg, {lon} deg, {elev} m".format(lat=args.lat, lon=args.lon, elev=args.elev))
-        print("T, P = {temp} C, {press} mbar".format(temp=args.temp, press=args.p))
-        print("Results:")
-        print("Azimuth, zenith = {az} {dr}, {zen} {dr}".format(az=az,zen=zen,dr=dr))
-        print("RA, dec, H = {ra} {dr}, {dec} {dr}, {h} {dr}".format(ra=ra, dec=dec, h=h, dr=dr))
-
-if __name__ == '__main__':
-    from argparse import ArgumentParser
-    import datetime, sys
-    parser = ArgumentParser(prog='sunposition',description='Compute sun position parameters given the time and location')
-    parser.add_argument('--version',action='version',version='%(prog)s 1.0')
-    parser.add_argument('--citation',dest='cite',action='store_true',help='Print citation information')
-    parser.add_argument('-t,--time',dest='t',type=str,default='now',help='"now" or date and time (UTC) in "YYYY-MM-DD hh:mm:ss.ssssss" format or a (UTC) POSIX timestamp')
-    parser.add_argument('-lat,--latitude',dest='lat',type=float,default=51.48,help='latitude, in decimal degrees, positive for north')
-    parser.add_argument('-lon,--longitude',dest='lon',type=float,default=0.0,help='longitude, in decimal degrees, positive for east')
-    parser.add_argument('-e,--elevation',dest='elev',type=float,default=0,help='elevation, in meters')
-    parser.add_argument('-T,--temperature',dest='temp',type=float,default=14.6,help='temperature, in degrees celcius')
-    parser.add_argument('-p,--pressure',dest='p',type=float,default=1013.0,help='atmospheric pressure, in millibar')
-    parser.add_argument('-dt',type=float,default=0.0,help='difference between earth\'s rotation time (TT) and universal time (UT1)')
-    parser.add_argument('-r,--radians',dest='rad',action='store_true',help='Output in radians instead of degrees')
-    parser.add_argument('--csv',dest='csv',action='store_true',help='Comma separated values (time,dt,lat,lon,elev,temp,pressure,az,zen,RA,dec,H)')
-    args = parser.parse_args()
-    if args.cite:
-        print("Implementation: Samuel Bear Powell, 2016")
-        print("Algorithm:")
-        print("Ibrahim Reda, Afshin Andreas, \"Solar position algorithm for solar radiation applications\", Solar Energy, Volume 76, Issue 5, 2004, Pages 577-589, ISSN 0038-092X, doi:10.1016/j.solener.2003.12.003")
-        sys.exit(0)
-    if args.t == "now":
-        args.t = datetime.datetime.utcnow()
-    elif ":" in args.t and "-" in args.t:
-        try:
-            args.t = datetime.datetime.strptime(args.t,'%Y-%m-%d %H:%M:%S.%f') #with microseconds
-        except:
-            try:
-                args.t = datetime.datetime.strptime(args.t,'%Y-%m-%d %H:%M:%S.') #without microseconds
-            except:
-                args.t = datetime.datetime.strptime(args.t,'%Y-%m-%d %H:%M:%S')
-    else:
-        args.t = datetime.datetime.utcfromtimestamp(int(args.t))
-    main(args)
-0

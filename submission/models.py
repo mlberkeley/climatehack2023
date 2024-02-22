@@ -1,27 +1,99 @@
-from .util import util
-from submission.resnet import *
-from .util.modules import solar_pos
+import numpy as np
+import torch
+import torch.nn as nn
+from torch import Tensor
 import torchvision.models as models
 
-def _resnet(
-    #block: Type[Union[BasicBlock, Bottleneck]],
-    #layers: List[int],
-    #weights: Optional,
-    #progress: bool,
-    #inchannels: int = 12,
-    #**kwargs: Any,
-#) -> ResNet:
-block, layers, weights, progress, inchannels, **kwargs):
+import pathlib
+import sys
 
-    model = ResNet(block, layers, inchannels=inchannels, **kwargs)
+sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 
-    if weights is not None:
-        model.load_state_dict(weights.get_state_dict(progress=progress, check_hash=True))
+from modules.solar import solar_pos
 
-    return model
+import keys as keys
+import util as util
 
 
-# TODO  fix
+
+class ResNetPV(nn.Module):
+    REQUIRED_META = []
+    REQUIRED_NONHRV = []
+    REQUIRED_WEATHER = []
+    # REQUIRED_FUTURE = [keys.FUTURE.NONHRV] this works, makes each nonhrv have 60 channels
+
+    def __init__(self, config: dict) -> None:
+        super().__init__()
+        self.channel = keys.NONHRV.from_str(config['channel'])
+        ResNetPV.REQUIRED_NONHRV.append(self.channel)
+
+        self.resnet_backbone = models.resnext50_32x4d()
+        # torch.load('./resnext50_32x4d-1a0047aa.pth', map_location='cpu')
+
+        self.head = nn.Sequential(
+                nn.Linear(self.resnet_backbone.fc.in_features + 12, 256), nn.LeakyReLU(0.1),
+                nn.Linear(256, 256), nn.LeakyReLU(0.1),
+                nn.Linear(256, 48),
+                nn.Sigmoid(),
+        )
+
+        self.resnet_backbone.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.resnet_backbone.fc = nn.Identity()
+
+    def forward(self, pv, site_features, nonhrv, weather):
+        feature = self.resnet_backbone(nonhrv[self.channel]) ## [:, [-5, -3, -1]]) if trying 3 channels
+        x = torch.concat((feature, pv), dim=-1)
+        x = self.head(x)
+        return x
+
+
+# NOTE  WIP
+class FutureModel(nn.Module):
+
+    REQUIRED_META = []
+    REQUIRED_NONHRV = []
+    REQUIRED_WEATHER = []
+    REQUIRED_FUTURE = [keys.FUTURE.NONHRV]
+
+    def __init__(self, config: dict) -> None:
+        super().__init__()
+        self.channel = keys.NONHRV.from_str(config['channel'])
+        FutureModel.REQUIRED_NONHRV.append(self.channel)
+
+        act = nn.ReLU()
+
+        self.head = nn.Sequential(
+                nn.Linear(12 * 16 + 12 + 16, 256), act,
+                nn.Linear(256, 256), act,
+                nn.Linear(256, 256), act,
+                # nn.Linear(256, 256), act,
+        )
+        self.head2 = nn.Sequential(
+                nn.Linear(256 + 12 + 16, 256), act,
+                nn.Linear(256, 128), act,
+                nn.Linear(128, 1),
+                nn.Sigmoid(),
+        )
+
+    def forward(self, pv, site_features, nonhrv, weather):
+        nonhrv = nonhrv[self.channel]
+        bs = nonhrv.shape[0]
+
+        inps = torch.concat((
+            pv.unsqueeze(1).repeat(1, 48, 1),
+            nonhrv[:, :12, 62:66, 62:66].flatten(start_dim=1).unsqueeze(1).repeat(1,48,1),
+            nonhrv[:, 12:, 62:66, 62:66].flatten(start_dim=2),
+        ), dim=-1)
+
+        inps = inps.view(bs * 48, 12 * 16 + 12 + 16)
+        x = self.head(inps)
+        x = torch.concat((x, pv.unsqueeze(1).repeat(1, 48, 1).view(bs*48, 12), nonhrv[:, 12:, 62:66, 62:66].flatten(start_dim=2).view(bs*48, 16)), dim=-1)
+        x = self.head2(x)
+        x = x.view(bs, 48)
+
+        return x
+
+
 class NonHRVMeta(nn.Module):
 
     REQUIRED_META = [
@@ -213,10 +285,12 @@ class MainModel2(nn.Module):
             feat1 = torch.concat([self.NonHRVBackbones[i](nonhrv[key]) for i, key in enumerate(self.REQUIRED_NONHRV)], dim=-1)
         else:
             feat1 = torch.Tensor([]).to("cuda")
+
         if len(self.REQUIRED_WEATHER):
             feat2 = torch.concat([self.WeatherBackbones[i](weather[key]) for i, key in enumerate(self.REQUIRED_WEATHER)], dim=-1)
         else:
             feat2 = torch.Tensor([]).to("cuda")
+
         if len(self.REQUIRED_META):
             feat3 = self.MetaAndPv(pv, site_features)
         else:
