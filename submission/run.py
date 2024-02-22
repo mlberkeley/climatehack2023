@@ -7,7 +7,7 @@ import h5py
 import torch
 
 from competition import BaseEvaluator
-from submission.models import MainModel2 as Model
+from models import MainModel2 as Model
 import numpy as np
 import util as util
 import keys as keys
@@ -56,7 +56,7 @@ class Evaluator(BaseEvaluator):
                 }
                 meta_features[keys.META.TIME] = meta_features[keys.META.TIME] / 1e9 # nanos to seconds
                 nonhrv_features = {
-                        k: torch.from_numpy(nonhrv[..., k].transpose(0, 1, 3, 2)).to(device)
+                        k: torch.from_numpy(nonhrv[..., k]).to(device)
                         for k in self.model.REQUIRED_NONHRV
                 }
                 weather_features = {
