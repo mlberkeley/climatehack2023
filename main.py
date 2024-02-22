@@ -22,7 +22,7 @@ from ema_pytorch import EMA
 from data.random_data import get_dataloaders
 import submission.keys as keys
 from submission.mainModel import MainModel2 as Model
-import submission.util
+import submission.util as util
 
 
 logger.info("imported modules")

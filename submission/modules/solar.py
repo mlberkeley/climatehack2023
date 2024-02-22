@@ -28,6 +28,8 @@
 # SOFTWARE.
 
 from ..resnet import *
+from datetime import datetime
+import numpy as np
 
 def solar_pos(site_features, device):
     meta_keys = [
