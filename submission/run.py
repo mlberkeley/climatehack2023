@@ -7,7 +7,7 @@ import h5py
 import torch
 
 from competition import BaseEvaluator
-from resnet import ResNetPV as Model
+from models import ResNetPV as Model
 import numpy as np
 import util as util
 import keys as keys
