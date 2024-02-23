@@ -31,11 +31,11 @@ import torch
 import sys
 sys.path.append("..")
 import keys as keys
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 import math
 
-def solar_pos(site_features, device):
+def solar_pos(meta, device, hourly=False):
     meta_keys = [
         keys.META.TIME,
         keys.META.LATITUDE,
@@ -44,20 +44,21 @@ def solar_pos(site_features, device):
         keys.META.TILT,
     ]
 
-    meta = torch.stack([site_features[key] for key in meta_keys], dim=1)
-    sun_pos = np.zeros((meta.shape[0], 2))
+    meta = torch.stack([meta[key] for key in meta_keys], dim=1)
+    sun_pos = np.zeros((meta.shape[0], 2 * (6 if hourly else 1)))
 
     for i, batch in enumerate(meta):
-        if not batch[0]:
-            return torch.Tensor([[0, 0]]).to(device)
+        if not batch[0]:  # No timestamp, happens in tracing/summary
+            sun_pos[i] = 0
 
         proj = get_solar_info(batch[1].cpu(), batch[2].cpu(), batch[3].cpu(), batch[4].cpu())
 
         timestamp_dt = datetime.utcfromtimestamp(batch[0].cpu().item())
-        zenith, incident = get_solar_pos(t=timestamp_dt, project_data=proj)
-
-        sun_pos[i, 0] = zenith
-        sun_pos[i, 1] = incident
+        for j in range(6 if hourly else 1):
+            zenith, incident = get_solar_pos(t=timestamp_dt, project_data=proj)
+            sun_pos[i, j * 2] = zenith
+            sun_pos[i, j * 2 + 1] = incident
+            timestamp_dt += timedelta(hours=1)
 
     return torch.from_numpy(sun_pos).float().to(device)
 
@@ -85,7 +86,7 @@ def get_solar_pos(t, project_data, return_datum=False):
             'RightAscension': rasc,
             'Declination': d,
             'HourAngle': h,
-            'IncidentAngle': incident_rad 
+            'IncidentAngle': incident_rad
         }
 
     return zenith_rad, incident_rad  # only get zenith and incident

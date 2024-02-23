@@ -1,8 +1,13 @@
+import sys
+import pathlib
+
+sys.path.append(str(pathlib.Path(__file__).parent.resolve()))
+
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import keys
-import sys
+
 # from loguru import logger
 
 
