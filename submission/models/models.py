@@ -15,7 +15,6 @@ import keys as keys
 import util as util
 
 
-
 class ResNetPV(nn.Module):
     REQUIRED_META = []
     REQUIRED_NONHRV = []
@@ -228,8 +227,6 @@ class MetaAndPv5(nn.Module):
         x = self.linear1(torch.concat([meta, pv], dim=-1))
         x = self.r(x)
         return x
-
-
 
 
 class MainModel2(nn.Module):

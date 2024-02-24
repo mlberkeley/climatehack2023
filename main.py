@@ -21,8 +21,9 @@ from ema_pytorch import EMA
 
 from data.random_data import get_dataloaders
 import submission.keys as keys
-from submission.models import MainModel2 as Model
 import submission.util as util
+
+from submission.models import build_model
 
 
 logger.info("imported modules")
@@ -104,7 +105,7 @@ def train():
         logger.warning('CUDA_VISIBLE_DEVICES not set, ensure you are using a free GPU')
 
 
-    model = Model(config.model.config).to(device)
+    model = build_model(config).to(device)
 
     train_dataloader, eval_dataloader = get_dataloaders(
         config=config,
