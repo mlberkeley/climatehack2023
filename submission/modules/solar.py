@@ -88,7 +88,8 @@ def get_solar_pos(t, project_data, return_datum=False):
             'IncidentAngle': incident_rad 
         }
 
-    return zenith_rad, incident_rad  # only get zenith and incident
+    return (0 if zenith_rad < 0 else zenith_rad,
+            0 if incident_rad < 0 else incident_rad)  # only get zenith and incident
 
 
 def get_solar_info(lat, long, orientation, tilt, interval=5):
