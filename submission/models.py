@@ -40,7 +40,7 @@ class ResNetPV(nn.Module):
         self.resnet_backbone.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.resnet_backbone.fc = nn.Identity()
 
-    def forward(self, pv, site_features, nonhrv, weather):
+    def forward(self, pv, meta, nonhrv, weather):
         feature = self.resnet_backbone(nonhrv[self.channel]) ## [:, [-5, -3, -1]]) if trying 3 channels
         x = torch.concat((feature, pv), dim=-1)
         x = self.head(x)
@@ -75,7 +75,7 @@ class FutureModel(nn.Module):
                 nn.Sigmoid(),
         )
 
-    def forward(self, pv, site_features, nonhrv, weather):
+    def forward(self, pv, meta, nonhrv, weather):
         nonhrv = nonhrv[self.channel]
         bs = nonhrv.shape[0]
 
@@ -167,10 +167,10 @@ class MetaAndPv(nn.Module):
         self.lin3 = nn.Linear(50, self.output_dim)
         self.r = nn.ReLU(inplace=True)
 
-    def forward(self, pv, site_features):
-        site_features = util.site_normalize(site_features)
+    def forward(self, pv, meta):
+        meta = util.site_normalize(meta)
         pv = 3*pv - 1.5      #pv is 0-1, lets make it -1.5 to 1.5
-        features = torch.concat((pv, site_features), dim=-1)
+        features = torch.concat((pv, meta), dim=-1)
 
         x = self.r(self.lin1(features))
         x = self.r(self.lin2(x))
@@ -222,9 +222,9 @@ class MetaAndPv5(nn.Module):
         self.r = nn.ReLU(inplace=True)
         self.linear1 = nn.Linear(17, 30)
 
-    def forward(self, pv, site_features):
-        site_features = util.site_normalize(site_features)
-        meta = torch.stack([site_features[key] for key in self.meta_keys], dim=1)
+    def forward(self, pv, meta):
+        meta = util.site_normalize(meta)
+        meta = torch.stack([meta[key] for key in self.meta_keys], dim=1)
         x = self.linear1(torch.concat([meta, pv], dim=-1))
         x = self.r(x)
         return x
@@ -272,15 +272,15 @@ class MainModel2(nn.Module):
 
 
         if len(self.REQUIRED_META):
-            self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + self.MetaAndPv.output_dim + 2 , 256)
+            self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + self.MetaAndPv.output_dim + 12, 256)
         else:
-            self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + 12 + 2, 256)
+            self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + 12 + 12, 256)
 
 
         self.linear2 = nn.Linear(256, 48)
         self.r = nn.ReLU(inplace=True)
 
-    def forward(self, pv, site_features, nonhrv, weather):
+    def forward(self, pv, meta, nonhrv, weather):
         if len(self.REQUIRED_NONHRV):
             feat1 = torch.concat([self.NonHRVBackbones[i](nonhrv[key]) for i, key in enumerate(self.REQUIRED_NONHRV)], dim=-1)
         else:
@@ -292,11 +292,11 @@ class MainModel2(nn.Module):
             feat2 = torch.Tensor([]).to("cuda")
 
         if len(self.REQUIRED_META):
-            feat3 = self.MetaAndPv(pv, site_features)
+            feat3 = self.MetaAndPv(pv, meta)
         else:
             feat3 = pv
 
-        solar_data = solar_pos(site_features, device="cuda")
+        solar_data = solar_pos(meta, device="cuda", hourly=True)
 
         all_feat = torch.concat([feat1, feat2, feat3, solar_data], dim=-1)
 
