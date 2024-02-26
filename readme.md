@@ -21,13 +21,13 @@ By default, `main.py` will train, not eval.
 
 Another method of local evaluation that more closely simulates the Doxa platform is to run
 ```
-python doxa_local.py run_name
+python doxa_local.py ckpts/run_name
 ```
 This automatically copies the model weights and config from the folder `ckpts/{run_name}/` to the submissions folder, then runs the eval on the model. I would recommend running this before submission to make sure everything works as intended.
 
 ## Submission
 Run
 ```
-bash submit.sh run_name
+bash submit.sh ckpts/run_name
 ```
 to login to Doxa and submit your model.

@@ -18,8 +18,8 @@ def main(run_name):
         print(f"Unable to load features at `{DATA_PATH}`")
         return
 
-    shutil.copyfile(f"ckpts/{run_name}/config.json", "submission/config.json")
-    shutil.copyfile(f"ckpts/{run_name}/{run_name}.pt.best_ema", "submission/model.pt")
+    shutil.copyfile(f"{run_name}/config.json", "submission/config.json")
+    shutil.copyfile(f"{run_name}/model.pt.best_ema", "submission/model.pt")
     # Switch into the submission directory
     cwd = os.getcwd()
     os.chdir("submission")
