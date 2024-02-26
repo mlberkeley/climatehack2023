@@ -248,7 +248,7 @@ if __name__ == "__main__":
         train()
     else:
         # INFO: eval
-        model = build_model(util.easydict_to_dict(config)).to(device)
+        model = build_model(config).to(device)
         model.load_state_dict(torch.load(f'ckpts/{args.run_name}/{args.run_name}.pt'))
         model.eval()
         dataloader = get_dataloaders(
