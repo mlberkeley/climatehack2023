@@ -88,7 +88,7 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
 
 def train():
     os.makedirs(f'ckpts/{args.run_name}/', exist_ok=True)
-    save_path = f'ckpts/{args.run_name}/{args.run_name}.pt'
+    save_path = f'ckpts/{args.run_name}/model.pt'
     
     util.save_config_to_json(config, f'ckpts/{args.run_name}/config.json')
 
@@ -245,8 +245,8 @@ if __name__ == "__main__":
         train()
     else:
         # INFO: eval
-        model = build_model(util.easydict_to_dict(config)).to(device)
-        model.load_state_dict(torch.load(f'ckpts/{args.run_name}/{args.run_name}.pt'))
+        model = build_model(config).to(device)
+        model.load_state_dict(torch.load(f'ckpts/{args.run_name}/model.pt'))
         model.eval()
         dataloader = get_dataloaders(
             config=config,
