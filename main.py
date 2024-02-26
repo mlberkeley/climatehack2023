@@ -249,7 +249,7 @@ if __name__ == "__main__":
     else:
         # INFO: eval
         model = build_model(config).to(device)
-        model.load_state_dict(torch.load(f'ckpts/{args.run_name}/{args.run_name}.pt'))
+        model.load_state_dict(torch.load(f'ckpts/{args.run_name}/model.pt'))
         model.eval()
         dataloader = get_dataloaders(
             config=config,
