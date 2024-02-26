@@ -91,7 +91,7 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
 
 def train():
     os.makedirs(f'ckpts/{args.run_name}/', exist_ok=True)
-    save_path = f'ckpts/{args.run_name}/{args.run_name}.pt'
+    save_path = f'ckpts/{args.run_name}/model.pt'
     
     util.save_config_to_json(config, f'ckpts/{args.run_name}/config.json')
 
