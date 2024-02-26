@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 import pickle
 import h5py
 import submission.util
-import submission.keys as keys
+import submission.models.keys as keys
 from loguru import logger
 from easydict import EasyDict
 import torchvision.transforms as transforms
