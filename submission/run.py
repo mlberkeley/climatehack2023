@@ -1,5 +1,6 @@
 import pathlib
 import sys
+import json
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 
@@ -7,11 +8,10 @@ import h5py
 import torch
 
 from competition import BaseEvaluator
-from models import MainModel2 as Model
 import numpy as np
 import util as util
-import keys as keys
-
+import models.keys as keys
+from models.build import build_model
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -19,9 +19,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class Evaluator(BaseEvaluator):
     def setup(self) -> None:
         """Sets up anything required for evaluation, e.g. loading a model."""
-
-        self.model = Model(dict(channel='VIS008')).to(device)
-        self.model.load_state_dict(torch.load("here comes the sun.pt.best_ema", map_location=device))
+        
+        config = json.load(open('config.json'))
+        
+        self.model = build_model(config).to(device)
+        self.model.load_state_dict(torch.load(f"model.pt", map_location=device))
         self.model.eval()
 
     def predict(self, features: h5py.File):
