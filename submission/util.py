@@ -76,20 +76,6 @@ def site_normalize(vals):
 def dict_to_device(d):
     return { k: v.to(device, dtype=torch.float) for k, v in d.items() }
 
-def easydict_to_dict(input_dict):
-    """Recursively converts EasyDict objects to regular dictionaries."""
-    if isinstance(input_dict, dict):
-        # Recursively apply to all dictionary items
-        return {key: easydict_to_dict(value) for key, value in input_dict.items()}
-    elif isinstance(input_dict, list):
-        # Apply to all elements in the list
-        return [easydict_to_dict(element) for element in input_dict]
-    else:
-        # No conversion is needed
-        return input_dict
-
 def save_config_to_json(config, output_path):
-    # Convert EasyDict to regular dict
-    plain_dict = easydict_to_dict(config)
     with open(output_path, 'w') as f:
-        json.dump(plain_dict, f, default=str)
+        json.dump(config, f, default=str, indent=4)
