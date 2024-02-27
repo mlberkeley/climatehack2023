@@ -7,8 +7,7 @@ import torch
 import torch.nn as nn
 
 from torchvision.ops.misc import Conv2dNormActivation, MLP
-from submission import keys
-
+import keys as keys
 
 def _ovewrite_named_param(kwargs: Dict[str, Any], param: str, new_value) -> None:
     if param in kwargs:

@@ -4,7 +4,6 @@ from pathlib import Path
 
 from loguru import logger
 from datetime import datetime
-import math
 import numpy as np
 
 import wandb
@@ -20,9 +19,9 @@ from torchinfo import summary
 from ema_pytorch import EMA
 
 from data.random_data import get_dataloaders
-import submission.keys as keys
-from submission.models import MainModel2 as Model
 import submission.util as util
+
+from submission.models import build_model
 
 
 logger.info("imported modules")
@@ -35,7 +34,7 @@ parser.add_argument("-n", "--run_name", type=str, required=True)
 parser.add_argument("-t", "--run_type", type=str, choices=["train", "eval"], default="train")
 parser.add_argument("-m", "--run_notes", type=str, default=None)
 parser.add_argument("-g", "--run_group", type=str, default=None)
-parser.add_argument("-c", "--config", type=str, required=True, help='config file to use')
+parser.add_argument("-c", "--config", type=str, required=True, help='filepath for config to use')
 parser.add_argument('--opts', nargs='*', default=[], help='arguments to override config as key=value')
 
 args = parser.parse_args()
@@ -88,8 +87,10 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
 
 
 def train():
-    os.makedirs('ckpts', exist_ok=True)
-    save_path = f'ckpts/{args.run_name}.pt'
+    os.makedirs(f'ckpts/{args.run_name}/', exist_ok=True)
+    save_path = f'ckpts/{args.run_name}/model.pt'
+    
+    util.save_config_to_json(config, f'ckpts/{args.run_name}/config.json')
 
     if Path(save_path).exists() or Path(save_path + '.best').exists():
         logger.error(f"Model save path {save_path} already exists, exiting. ")
@@ -104,7 +105,7 @@ def train():
         logger.warning('CUDA_VISIBLE_DEVICES not set, ensure you are using a free GPU')
 
 
-    model = Model(config.model.config).to(device)
+    model = build_model(config).to(device)
 
     train_dataloader, eval_dataloader = get_dataloaders(
         config=config,
@@ -244,8 +245,8 @@ if __name__ == "__main__":
         train()
     else:
         # INFO: eval
-        model = Model(config.model.config).to(device)
-        model.load_state_dict(torch.load(f'{args.run_name}'))
+        model = build_model(config).to(device)
+        model.load_state_dict(torch.load(f'ckpts/{args.run_name}/model.pt'))
         model.eval()
         dataloader = get_dataloaders(
             config=config,

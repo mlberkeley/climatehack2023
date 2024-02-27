@@ -7,8 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-import keys
+import models.keys as keys
 # from loguru import logger
+import json
 
 
 """
@@ -74,3 +75,7 @@ def site_normalize(vals):
 
 def dict_to_device(d):
     return { k: v.to(device, dtype=torch.float) for k, v in d.items() }
+
+def save_config_to_json(config, output_path):
+    with open(output_path, 'w') as f:
+        json.dump(config, f, default=str, indent=4)

@@ -1,5 +1,5 @@
 model:
-  name: resnetpv 
+  name: mainmodel2
   config:
     channel: VIS008
 train:

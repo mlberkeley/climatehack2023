@@ -1,22 +1,23 @@
-from models.py import ResNetPV, NonHRVMeta, MetaAndPv, MetaAndPv5, MainModel2
+from .models import ResNetPV, NonHRVMeta, MetaAndPv, MetaAndPv5, MainModel2
+from .vit import VIT_Model
 
+# Note that config is now a regular dictionary, NOT an easydict
 def build_model(config):
-    "Model builder."
+    model_type = config['model']['name']
+    model_config = config['model']['config']
 
-    model_type = config.MODEL.NAME
-
-    if model_type == 'lenet':
-        model = LeNet(num_classes=config.MODEL.NUM_CLASSES)
-    elif model_type == 'resnet18':
-        model = ResNet18(num_classes=config.MODEL.NUM_CLASSES)
-    # elif model_type == 'resnet34':
-    #     model = ResNet34(num_classes=config.MODEL.NUM_CLASSES)
-    # elif model_type == 'resnet50':
-    #     model = ResNet50(num_classes=config.MODEL.NUM_CLASSES)
-    # elif model_type == 'resnet101':
-    #     model = ResNet101(num_classes=config.MODEL.NUM_CLASSES)
-    # elif model_type == 'resnet152':
-    #     model = ResNet152(num_classes=config.MODEL.NUM_CLASSES)
+    if model_type == 'resnetpv':
+        model = ResNetPV(model_config)
+    elif model_type == 'nonhrvmeta':
+        model = NonHRVMeta(model_config)
+    elif model_type == 'metaandpv':
+        model = MetaAndPv(model_config)
+    elif model_type == 'metaandpv5':
+        model = MetaAndPv5(model_config)
+    elif model_type == 'mainmodel2':
+        model = MainModel2(model_config)
+    elif model_type == 'vit':
+        model = VIT_Model(model_config)
     else:
         raise NotImplementedError(f"Unknown model: {model_type}")
     

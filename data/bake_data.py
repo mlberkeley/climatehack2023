@@ -13,7 +13,7 @@ import json
 import pickle
 import h5py
 from tqdm import tqdm
-from submission.keys import WEATHER, WEATHER_RANGES
+from submission.models.keys import WEATHER, WEATHER_RANGES
 from loguru import logger
 
 

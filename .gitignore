@@ -165,3 +165,5 @@ out
 vis/
 wandb/
 ckpts/
+*.json
+scoreboard.txt
