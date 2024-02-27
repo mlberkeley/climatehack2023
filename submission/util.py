@@ -9,6 +9,7 @@ import torch
 
 import models.keys as keys
 # from loguru import logger
+import json
 
 
 """
@@ -89,6 +90,6 @@ def easydict_to_dict(input_dict):
 
 def save_config_to_json(config, output_path):
     # Convert EasyDict to regular dict
-    plain_dict = util.easydict_to_dict(config)
+    plain_dict = easydict_to_dict(config)
     with open(output_path, 'w') as f:
         json.dump(plain_dict, f, default=str)

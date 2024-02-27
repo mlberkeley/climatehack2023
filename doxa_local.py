@@ -10,7 +10,7 @@ from submission.run import Evaluator
 DATA_PATH = "/data/climatehack/evaluation/data.hdf5"
 
 
-def main(run_name):
+def main(model_folder):
     # Load the data (combined features & targets)
     try:
         data = h5py.File(DATA_PATH, "r")
@@ -18,8 +18,8 @@ def main(run_name):
         print(f"Unable to load features at `{DATA_PATH}`")
         return
 
-    shutil.copyfile(f"{run_name}/config.json", "submission/config.json")
-    shutil.copyfile(f"{run_name}/model.pt.best_ema", "submission/model.pt")
+    shutil.copyfile(f"{model_folder}/config.json", "submission/config.json")
+    shutil.copyfile(f"{model_folder}/model.pt.best_ema", "submission/model.pt")
     # Switch into the submission directory
     cwd = os.getcwd()
     os.chdir("submission")
@@ -43,7 +43,7 @@ def main(run_name):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python doxa_local.py <run_name>")
+        print("Usage: python doxa_local.py <model_folder>")
         exit(1)
-    run_name = sys.argv[1]
-    main(run_name)
+    model_folder = sys.argv[1]
+    main(model_folder)
