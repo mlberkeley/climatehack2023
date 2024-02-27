@@ -105,7 +105,7 @@ def train():
         logger.warning('CUDA_VISIBLE_DEVICES not set, ensure you are using a free GPU')
 
 
-    model = build_model(util.easydict_to_dict(config)).to(device)
+    model = build_model(config).to(device)
 
     train_dataloader, eval_dataloader = get_dataloaders(
         config=config,
