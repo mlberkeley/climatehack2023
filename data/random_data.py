@@ -328,11 +328,14 @@ class ClimatehackDataset(Dataset):
         # meta
         df = self.meta
         ss_id, lati, longi, _, orientation, tilt, kwp, _ = df.iloc[np.searchsorted(df['ss_id'].values, site)]
-        # DO NOT CHANGE THE ORDER OF THESE
-        site_features = [timestamp, lati, longi, orientation, tilt, kwp, ss_id]
         meta_out = {
-            key: site_features[i]
-            for i, key in enumerate(keys.META)
+            keys.META.TIME: timestamp,
+            keys.META.LATITUDE: lati,
+            keys.META.LONGITUDE: longi,
+            keys.META.ORIENTATION: orientation,
+            keys.META.TILT: tilt,
+            keys.META.KWP: kwp,
+            keys.META.SOLAR_ANGLES: solar_cache,
         }
 
         return pv_features, meta_out, hrv_out, nonhrv_out, weather_out, aerosols_out, pv_targets

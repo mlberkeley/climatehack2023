@@ -21,6 +21,7 @@ from ema_pytorch import EMA
 from data.random_data import get_dataloaders
 import submission.util as util
 
+from submission.models import keys
 from submission.models import build_model
 
 
@@ -119,7 +120,15 @@ def train():
 
     summary(model, input_data=(
         torch.zeros((1, 12)),
-        {k: torch.zeros((1, )) for k in model.REQUIRED_META},
+        {
+            keys.META.TIME: torch.zeros((1, )),
+            keys.META.LATITUDE: torch.zeros((1, )),
+            keys.META.LONGITUDE: torch.zeros((1, )),
+            keys.META.ORIENTATION: torch.zeros((1, )),
+            keys.META.TILT: torch.zeros((1, )),
+            keys.META.KWP: torch.zeros((1, )),
+            keys.META.SOLAR_ANGLES: torch.zeros((1, 6, 2)),
+        },
         {k: torch.zeros((1, 12, 128, 128)) for k in model.REQUIRED_HRV},
         {k: torch.zeros((1, 60 if hasattr(model, 'REQUIRED_FUTURE') else 12, 128, 128)) for k in model.REQUIRED_NONHRV},
         {k: torch.zeros((1, 6, 128, 128)) for k in model.REQUIRED_WEATHER},
