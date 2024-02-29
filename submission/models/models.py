@@ -15,6 +15,7 @@ import keys as keys
 import util as util
 
 
+
 class ResNetPV(nn.Module):
     REQUIRED_META = []
     REQUIRED_NONHRV = []
@@ -229,6 +230,8 @@ class MetaAndPv5(nn.Module):
         return x
 
 
+
+
 class MainModel2(nn.Module):
 
     REQUIRED_META = [
@@ -240,6 +243,10 @@ class MainModel2(nn.Module):
         keys.META.KWP
     ]
 
+    REQUIRED_HRV = [
+        # keys.HRV.HRV,
+    ]
+
     REQUIRED_NONHRV = [
         keys.NONHRV.VIS008,
     ]
@@ -249,9 +256,14 @@ class MainModel2(nn.Module):
         #keys.WEATHER.CLCL
     ]
 
+    REQUIRED_AEROSOLS = [
+        # keys.AEROSOLS.DUST,
+    ]
+
     def __init__(self, config) -> None:
         super().__init__()
 
+        self.meta_head = True
         self.MetaAndPv = MetaAndPv5()
 
         #self.WeatherBackbones = nn.ModuleList([WeatherBackbone() for i in range(len(self.REQUIRED_WEATHER))])
@@ -268,7 +280,7 @@ class MainModel2(nn.Module):
             bone.fc = nn.Identity()
 
 
-        if len(self.REQUIRED_META):
+        if self.meta_head:
             self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + self.MetaAndPv.output_dim + 12, 256)
         else:
             self.linear1 = nn.Linear(len(self.REQUIRED_WEATHER) * 512 + len(self.REQUIRED_NONHRV) * 512 + 12 + 12, 256)
@@ -277,7 +289,7 @@ class MainModel2(nn.Module):
         self.linear2 = nn.Linear(256, 48)
         self.r = nn.ReLU(inplace=True)
 
-    def forward(self, pv, meta, nonhrv, weather):
+    def forward(self, pv, meta, hrv, nonhrv, weather, aerosols):
         if len(self.REQUIRED_NONHRV):
             feat1 = torch.concat([self.NonHRVBackbones[i](nonhrv[key]) for i, key in enumerate(self.REQUIRED_NONHRV)], dim=-1)
         else:
@@ -288,7 +300,7 @@ class MainModel2(nn.Module):
         else:
             feat2 = torch.Tensor([]).to("cuda")
 
-        if len(self.REQUIRED_META):
+        if self.meta_head:
             feat3 = self.MetaAndPv(pv, meta)
         else:
             feat3 = pv

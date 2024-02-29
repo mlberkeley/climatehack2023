@@ -52,12 +52,12 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
     logger.info("started eval")
 
     with torch.no_grad():
-        for i, (pv_features, meta, nonhrv, weather, pv_targets) in enumerate(dataloader):
-            meta, nonhrv, weather = util.dict_to_device(meta), util.dict_to_device(nonhrv), util.dict_to_device(weather)
+        for i, (pv_features, meta, hrv, nonhrv, weather, aerosols, pv_targets) in enumerate(dataloader):
+            meta, hrv, nonhrv, weather, aerosols = map(util.dict_to_device, (meta, hrv, nonhrv, weather, aerosols))
             pv_features = pv_features.to(device, dtype=torch.float)
             pv_targets = pv_targets.to(device, dtype=torch.float)
 
-            predictions = model(pv_features, meta, nonhrv, weather)
+            predictions = model(pv_features, meta, hrv, nonhrv, weather, aerosols)
 
             gt[i * dataloader.batch_size: (i + 1) * dataloader.batch_size] = pv_targets.cpu().numpy()
             preds[i * dataloader.batch_size: (i + 1) * dataloader.batch_size] = predictions.cpu().numpy()
@@ -89,7 +89,7 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
 def train():
     os.makedirs(f'ckpts/{args.run_name}/', exist_ok=True)
     save_path = f'ckpts/{args.run_name}/model.pt'
-    
+
     util.save_config_to_json(config, f'ckpts/{args.run_name}/config.json')
 
     if Path(save_path).exists() or Path(save_path + '.best').exists():
@@ -110,16 +110,20 @@ def train():
     train_dataloader, eval_dataloader = get_dataloaders(
         config=config,
         meta_features=model.REQUIRED_META,
+        hrv_features=model.REQUIRED_HRV,
         nonhrv_features=model.REQUIRED_NONHRV,
         weather_features=model.REQUIRED_WEATHER,
+        aerosols_features=model.REQUIRED_AEROSOLS,
         future_features=model.REQUIRED_FUTURE if hasattr(model, 'REQUIRED_FUTURE') else None,
     )
 
     summary(model, input_data=(
         torch.zeros((1, 12)),
         {k: torch.zeros((1, )) for k in model.REQUIRED_META},
+        {k: torch.zeros((1, 12, 128, 128)) for k in model.REQUIRED_HRV},
         {k: torch.zeros((1, 60 if hasattr(model, 'REQUIRED_FUTURE') else 12, 128, 128)) for k in model.REQUIRED_NONHRV},
         {k: torch.zeros((1, 6, 128, 128)) for k in model.REQUIRED_WEATHER},
+        {k: torch.zeros((1, 6, 128, 128)) for k in model.REQUIRED_AEROSOLS},
     ), device=device)
 
 
@@ -147,9 +151,9 @@ def train():
     torch.autograd.set_detect_anomaly(True)
 
     val_loss_1h, val_loss_4h = eval(eval_dataloader, model)
-    ema_loss_1h, ema_loss_4h = eval(eval_dataloader, ema)
+    ema_loss_1h, ema_loss_4h = val_loss_1h, val_loss_4h
     min_val_loss = val_loss_4h
-    min_ema_loss = val_loss_4h
+    min_ema_loss = ema_loss_4h
 
 
     logger.info("started training")
@@ -166,14 +170,14 @@ def train():
         count = 0
         last_time = datetime.now()
 
-        for i, (pv_features, meta, nonhrv, weather, pv_targets) in enumerate(train_dataloader):
+        for i, (pv_features, meta, hrv, nonhrv, weather, aerosols, pv_targets) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
-            meta, nonhrv, weather = util.dict_to_device(meta), util.dict_to_device(nonhrv), util.dict_to_device(weather)
+            meta, hrv, nonhrv, weather, aerosols = map(util.dict_to_device, (meta, hrv, nonhrv, weather, aerosols))
             pv_features = pv_features.to(device, dtype=torch.float)
             pv_targets = pv_targets.to(device, dtype=torch.float)
 
-            predictions = model(pv_features, meta, nonhrv, weather)
+            predictions = model(pv_features, meta, hrv, nonhrv, weather, aerosols)
 
             loss = criterion(predictions, pv_targets)
             loss.backward()
@@ -251,8 +255,10 @@ if __name__ == "__main__":
         dataloader = get_dataloaders(
             config=config,
             meta_features=model.REQUIRED_META,
+            hrv_features=model.REQUIRED_HRV,
             nonhrv_features=model.REQUIRED_NONHRV,
             weather_features=model.REQUIRED_WEATHER,
+            aerosols_features=model.REQUIRED_AEROSOLS,
             future_features=None,
             load_train=False,
         )
