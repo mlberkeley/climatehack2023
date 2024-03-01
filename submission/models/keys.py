@@ -12,12 +12,13 @@ class KeyEnum(IntEnum):
 
 @unique
 class META(KeyEnum):
-    TIME        = 0
-    LATITUDE    = auto()
-    LONGITUDE   = auto()
-    ORIENTATION = auto()
-    TILT        = auto()
-    KWP         = auto()
+    TIME         = 0
+    LATITUDE     = auto()
+    LONGITUDE    = auto()
+    ORIENTATION  = auto()
+    TILT         = auto()
+    KWP          = auto()
+    SOLAR_ANGLES = auto()
 
 
 @unique
