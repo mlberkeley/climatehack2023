@@ -1,7 +1,14 @@
 model:
   name: mainmodel2
   config:
-    channel: VIS008
+    meta_head: true
+    nonhrv_channels: 
+      # - IR_016
+      - VIS008
+    weather_channels:
+      # - CLCT
+      # - ASWDIFD_S
+      # - ASWDIR_S
 train:
   batch_size: 256
   num_epochs: 10
