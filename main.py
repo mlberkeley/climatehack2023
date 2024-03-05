@@ -87,6 +87,7 @@ def _eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground
 @click.option("--nowandb", is_flag=True)
 @click.option('--opts', multiple=True, default=[], help='arguments to override config as key=value')
 def train(run_name, config, run_notes, run_group, nowandb, opts):
+    config = get_config(config)
     os.makedirs(f'ckpts/{run_name}/', exist_ok=True)
     save_path = f'ckpts/{run_name}/model.pt'
 

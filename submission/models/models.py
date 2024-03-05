@@ -132,6 +132,7 @@ class MainModel2(nn.Module):
         if self.meta_head:
             feat3 = self.meta_and_pv(pv, features)
         else:
+            solar = features[COMPUTED.SOLAR_ANGLES]
             solar[solar[:, :, 0] < 0] = 0 # zero out angles at night (zenith_horizontal < 0)
             solar = solar.view(-1, 12)
             feat3 = torch.concat((pv, solar), dim=-1)
