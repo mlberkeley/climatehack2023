@@ -1,14 +1,14 @@
 import os
 import sys
 from pathlib import Path
-
+import click
 from loguru import logger
 from datetime import datetime
 import numpy as np
-
+import json
 import wandb
-import argparse
 from config import get_config
+from easydict import EasyDict as edict
 
 import torch
 import torch.nn as nn
@@ -29,20 +29,12 @@ logger.info("imported modules")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--nowandb", action='store_true')
-parser.add_argument("-n", "--run_name", type=str, required=True)
-parser.add_argument("-t", "--run_type", type=str, choices=["train", "eval"], default="train")
-parser.add_argument("-m", "--run_notes", type=str, default=None)
-parser.add_argument("-g", "--run_group", type=str, default=None)
-parser.add_argument("-c", "--config", type=str, required=True, help='filepath for config to use')
-parser.add_argument('--opts', nargs='*', default=[], help='arguments to override config as key=value')
-
-args = parser.parse_args()
-config = get_config(args.config, args.opts)
+@click.group()
+def cli():
+    pass
 
 
-def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_truth_path=None):
+def _eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_truth_path=None):
     model.eval()
 
     tot_loss_1h, tot_loss_4h, count = 0, 0, 0
@@ -87,11 +79,18 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
     return val_loss_1h, val_loss_4h
 
 
-def train():
-    os.makedirs(f'ckpts/{args.run_name}/', exist_ok=True)
-    save_path = f'ckpts/{args.run_name}/model.pt'
+@cli.command()
+@click.option("-n", "--run_name", type=str, required=True)
+@click.option("-c", "--config", type=str, required=True, help='filepath for config to use')
+@click.option("-m", "--run_notes", type=str, default=None)
+@click.option("-g", "--run_group", type=str, default=None)
+@click.option("--nowandb", is_flag=True)
+@click.option('--opts', multiple=True, default=[], help='arguments to override config as key=value')
+def train(run_name, config, run_notes, run_group, nowandb, opts):
+    os.makedirs(f'ckpts/{run_name}/', exist_ok=True)
+    save_path = f'ckpts/{run_name}/model.pt'
 
-    util.save_config_to_json(config, f'ckpts/{args.run_name}/config.json')
+    util.save_config_to_json(config, f'ckpts/{run_name}/config.json')
 
     if Path(save_path).exists() or Path(save_path + '.best').exists():
         logger.error(f"Model save path {save_path} already exists, exiting. ")
@@ -136,10 +135,10 @@ def train():
         entity="mlatberkeley",
         project="climatehack23",
         config=dict(config),
-        mode="offline" if args.nowandb else "online",
-        name=args.run_name,
-        notes=args.run_notes,
-        group=args.run_group,
+        mode="offline" if nowandb else "online",
+        name=run_name,
+        notes=run_notes,
+        group=run_group,
     )
 
     ema = EMA(
@@ -155,7 +154,7 @@ def train():
 
     torch.autograd.set_detect_anomaly(True)
 
-    val_loss_1h, val_loss_4h = eval(eval_dataloader, model)
+    val_loss_1h, val_loss_4h = _eval(eval_dataloader, model)
     ema_loss_1h, ema_loss_4h = val_loss_1h, val_loss_4h
     min_val_loss = val_loss_4h
     min_ema_loss = ema_loss_4h
@@ -200,8 +199,8 @@ def train():
             if (i + 1) % config.train.eval_every == 0:
                 st = datetime.now()
                 logger.info(f"validating...")
-                val_loss_1h, val_loss_4h = eval(eval_dataloader, model)
-                ema_loss_1h, ema_loss_4h = eval(eval_dataloader, ema)
+                val_loss_1h, val_loss_4h = _eval(eval_dataloader, model)
+                ema_loss_1h, ema_loss_4h = _eval(eval_dataloader, ema)
                 logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}, ema_l1 - 1h: {ema_loss_1h:.5f}, 4h: {ema_loss_4h:.5f}")
 
                 torch.save(model.state_dict(), save_path)
@@ -247,28 +246,25 @@ def train():
     wandb.finish()
 
 
-if __name__ == "__main__":
-    logger.info(f"started with {args.run_type}")
+@cli.command()
+@click.argument("ckpt", required=True, type=click.Path(exists=True))
+def eval(ckpt):
+    ckpt = Path(ckpt)
+    config = edict(util.load_json_config(ckpt / 'config.json'))
+    model = build_model(config).to(device)
+    model.load_state_dict(torch.load(ckpt / 'model.pt.best_ema'))
+    model.eval()
+    dataloader = get_dataloaders(
+        config=config,
+        features=model.required_features,
+        load_train=False,
+    )
+    val_loss_1h, val_loss_4h = _eval(
+            dataloader, model,
+            # preds_save_path=output, ground_truth_path=ground_truth
+    )
+    logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}")
 
-    if args.run_type == "train":
-        train()
-    else:
-        # INFO: eval
-        model = build_model(config).to(device)
-        model.load_state_dict(torch.load(f'ckpts/{args.run_name}/model.pt'))
-        model.eval()
-        dataloader = get_dataloaders(
-            config=config,
-            meta_features=model.REQUIRED_META,
-            hrv_features=model.REQUIRED_HRV,
-            nonhrv_features=model.REQUIRED_NONHRV,
-            weather_features=model.REQUIRED_WEATHER,
-            aerosols_features=model.REQUIRED_AEROSOLS,
-            future_features=None,
-            load_train=False,
-        )
-        val_loss_1h, val_loss_4h = eval(
-                dataloader, model,
-                # preds_save_path=args.output, ground_truth_path=args.ground_truth
-        )
-        logger.info(f"val_l1 - 1h: {val_loss_1h:.5f}, 4h: {val_loss_4h:.5f}")
+
+if __name__ == "__main__":
+    cli()
