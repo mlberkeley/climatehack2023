@@ -27,13 +27,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import torch
+import pathlib
 import sys
-sys.path.append("..")
+# sys.path.append("..")
+sys.path.append(str(pathlib.Path(__file__).parent.resolve()))
+
 import models.keys as keys
 from datetime import datetime, timedelta
 import numpy as np
 import math
+import torch
 
 def solar_pos(meta, device, hourly=False):
     meta_keys = [
@@ -54,6 +57,8 @@ def solar_pos(meta, device, hourly=False):
         proj = get_solar_info(batch[1].cpu(), batch[2].cpu(), batch[3].cpu(), batch[4].cpu())
 
         timestamp_dt = datetime.utcfromtimestamp(batch[0].cpu().item())
+        if hourly:
+            timestamp_dt -= timedelta(hours=1)
         for j in range(6 if hourly else 1):
             zenith, incident = get_solar_pos(t=timestamp_dt, project_data=proj)
             sun_pos[i, j * 2] = zenith
@@ -89,8 +94,9 @@ def get_solar_pos(t, project_data, return_datum=False):
             'IncidentAngle': incident_rad
         }
 
-    return (0 if zenith_rad < 0 else zenith_rad,
-            0 if incident_rad < 0 else incident_rad)  # only get zenith and incident
+    # return (0 if zenith_rad < 0 else zenith_rad,
+    #         0 if incident_rad < 0 else incident_rad)  # only get zenith and incident
+    return zenith_rad, incident_rad
 
 
 def get_solar_info(lat, long, orientation, tilt, interval=5):

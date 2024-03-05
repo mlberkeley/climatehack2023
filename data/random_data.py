@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 import pickle
 import h5py
 import submission.util
-import submission.models.keys as keys
+from submission.models.keys import KeyEnum, META, COMPUTED, HRV, NONHRV, WEATHER, AEROSOLS
 from loguru import logger
 from easydict import EasyDict
 import torchvision.transforms as transforms
@@ -29,12 +29,7 @@ TRAIN_TRANSFORM = transforms.Compose([
 
 def get_dataloaders(
     config: EasyDict,
-    meta_features: set[keys.META],
-    hrv_features: set[keys.HRV],
-    nonhrv_features: set[keys.NONHRV],
-    weather_features: set[keys.WEATHER],
-    aerosols_features: set[keys.AEROSOLS],
-    future_features: set[keys.FUTURE],
+    features: set[KeyEnum],
     load_train: bool = True,
     load_eval: bool = True,
 ):
@@ -46,12 +41,7 @@ def get_dataloaders(
             start_date=config.data.train_start_date,
             end_date=config.data.train_end_date,
             root_dir=config.data.root,
-            meta_features=meta_features,
-            hrv_features=hrv_features,
-            nonhrv_features=nonhrv_features,
-            weather_features=weather_features,
-            aerosols_features=aerosols_features,
-            future_features=future_features,
+            features=features,
             subset_size=config.data.train_subset_size,
             transform=TRAIN_TRANSFORM,
         )
@@ -70,12 +60,7 @@ def get_dataloaders(
             start_date=config.data.eval_start_date,
             end_date=config.data.eval_end_date,
             root_dir=config.data.root,
-            meta_features=meta_features,
-            hrv_features=hrv_features,
-            nonhrv_features=nonhrv_features,
-            weather_features=weather_features,
-            aerosols_features=aerosols_features,
-            future_features=future_features,
+            features=features,
             subset_size=config.data.eval_subset_size,
         )
         logger.info(f"Loaded eval dataset with {len(eval_dataset):,} samples in {datetime.now() - start_time}")
@@ -98,24 +83,22 @@ class ClimatehackDataset(Dataset):
         start_date: datetime,
         end_date: datetime,
         root_dir: Path,
-        meta_features: set[keys.META],
-        hrv_features: set[keys.HRV],
-        nonhrv_features: set[keys.NONHRV],
-        weather_features: set[keys.WEATHER],
-        aerosols_features: set[keys.AEROSOLS],
-        future_features: set[keys.FUTURE],
+        features: set[KeyEnum],
         subset_size: int = 0,
         transform=None,
     ):
         self.start_date = start_date
         self.end_date = end_date
         self.root_dir = root_dir
-        self.meta_features = meta_features
-        self.hrv_features = hrv_features
-        self.nonhrv_features = nonhrv_features
-        self.weather_features = weather_features
-        self.aerosols_features = aerosols_features
-        self.require_future_nonhrv = keys.FUTURE.NONHRV in future_features if future_features else False
+        logger.debug(f"Loading dataset with features: {features}")
+        self.meta_features = {k for k in features if META.has(k)}
+        self.computed_features = {k for k in features if COMPUTED.has(k)}
+        self.hrv_features = {k for k in features if HRV.has(k)}
+        self.nonhrv_features = {k for k in features if NONHRV.has(k)}
+        self.weather_features = {k for k in features if WEATHER.has(k)}
+        self.aerosols_features = {k for k in features if AEROSOLS.has(k)}
+        self.require_future_nonhrv = COMPUTED.FUTURE_NONHRV in features
+
         self.transform = transform if transform is not None else nn.Identity()
 
         self.meta = pd.read_csv("/data/climatehack/official_dataset/pv/meta.csv")
@@ -208,6 +191,7 @@ class ClimatehackDataset(Dataset):
         ]
         # TODO  also check for future hrv
         if self.require_future_nonhrv:
+            logger.info("Filtering bake index for future nonhrv.")
             keep_map = np.zeros(len(self.bake_index), dtype=bool)
             # basically need it so that for every site, there's nonhrv for hour and next 4 hrs
             # for entry in bake_index:
@@ -215,7 +199,7 @@ class ClimatehackDataset(Dataset):
             #     if so, keep_map[entry] = True
             # self.bake_index = self.bake_index[keep_map]
             bake_index_entries = {
-                (ts, s) for ts, s, _, _ in self.bake_index
+                (ts, s) for ts, s, _, _, _, _, _ in self.bake_index
             }
             def _check_future_nonhrv(timestamp, site):
                 for i in range(1, 5):
@@ -223,7 +207,7 @@ class ClimatehackDataset(Dataset):
                         return False
                 return True
 
-            for i, (timestamp, site, _, _) in enumerate(tqdm(self.bake_index)):
+            for i, (timestamp, site, _, _, _, _, _) in enumerate(tqdm(self.bake_index)):
                 keep_map[i] = _check_future_nonhrv(timestamp, site)
             self.bake_index = self.bake_index[keep_map]
 
@@ -246,6 +230,8 @@ class ClimatehackDataset(Dataset):
         pv_features = self.pv.xs(first_hour).xs(site).to_numpy().squeeze(-1)
         pv_targets = self.pv.xs(next_four).xs(site).to_numpy().squeeze(-1)
 
+        out = {}
+
         # hrv
         x, y = self.site_locations['hrv'][site]
         hrv_ind = self.hrv_time_map[timestamp]
@@ -257,10 +243,8 @@ class ClimatehackDataset(Dataset):
                 x - 64:x + 64,
         ]
         hrv_out_raw = hrv_out_raw.astype(np.float32) / 255
-        hrv_out = {
-            key: self.transform(torch.from_numpy(hrv_out_raw[i]))
-            for i, key in enumerate(self.hrv_features)
-        }
+        for i, key in enumerate(self.hrv_features):
+            out[key] = self.transform(torch.from_numpy(hrv_out_raw[i]))
 
         # nonhrv
         x, y = self.site_locations['nonhrv'][site]
@@ -287,10 +271,8 @@ class ClimatehackDataset(Dataset):
         # nonhrv.shape = (channels, num_hours, hour, y, x) = (11, *, 12, 293, 333)
         # nonhrv_out_raw.shape = (len(nonhrv_keys), 12, 128, 128)
         nonhrv_out_raw = nonhrv_out_raw.astype(np.float32) / 255
-        nonhrv_out = {
-            key: self.transform(torch.from_numpy(nonhrv_out_raw[i]))
-            for i, key in enumerate(self.nonhrv_features)
-        }
+        for i, key in enumerate(self.nonhrv_features):
+            out[key] = self.transform(torch.from_numpy(nonhrv_out_raw[i]))
 
         # weather
         x, y = self.site_locations['weather'][site]
@@ -304,10 +286,8 @@ class ClimatehackDataset(Dataset):
         # weather.shape = (channels, num_hours, y, x) = (38, *, 305, 289)
         # weather_out_raw.shape = (len(weather_keys), 6, 128, 128)
         weather_out_raw = weather_out_raw.astype(np.float32) / 255
-        weather_out = {
-            key: self.transform(torch.from_numpy(weather_out_raw[i]))
-            for i, key in enumerate(self.weather_features)
-        }
+        for i, key in enumerate(self.weather_features):
+            out[key] = self.transform(torch.from_numpy(weather_out_raw[i]))
 
         # aerosols
         x, y = self.site_locations['aerosols'][site]
@@ -320,22 +300,18 @@ class ClimatehackDataset(Dataset):
                 x - 64:x + 64,
         ]
         aerosols_out_raw = aerosols_out_raw.astype(np.float32) / 255
-        aerosols_out = {
-            key: self.transform(torch.from_numpy(aerosols_out_raw[i]))
-            for i, key in enumerate(self.aerosols_features)
-        }
+        for i, key in enumerate(self.aerosols_features):
+            out[key] = self.transform(torch.from_numpy(aerosols_out_raw[i]))
 
         # meta
         df = self.meta
         ss_id, lati, longi, _, orientation, tilt, kwp, _ = df.iloc[np.searchsorted(df['ss_id'].values, site)]
-        meta_out = {
-            keys.META.TIME: timestamp,
-            keys.META.LATITUDE: lati,
-            keys.META.LONGITUDE: longi,
-            keys.META.ORIENTATION: orientation,
-            keys.META.TILT: tilt,
-            keys.META.KWP: kwp,
-            keys.META.SOLAR_ANGLES: solar_cache,
-        }
+        out[META.TIME] = timestamp
+        out[META.LATITUDE] = lati
+        out[META.LONGITUDE] = longi
+        out[META.ORIENTATION] = orientation
+        out[META.TILT] = tilt
+        out[META.KWP] = kwp
+        out[COMPUTED.SOLAR_ANGLES] = solar_cache
 
-        return pv_features, meta_out, hrv_out, nonhrv_out, weather_out, aerosols_out, pv_targets
+        return pv_features, out, pv_targets

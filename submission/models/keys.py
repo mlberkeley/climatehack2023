@@ -2,6 +2,7 @@ from enum import IntEnum, auto, unique
 
 
 class KeyEnum(IntEnum):
+
     @classmethod
     def from_str(cls, key: str):
         for k in cls:
@@ -9,16 +10,31 @@ class KeyEnum(IntEnum):
                 return k
         raise KeyError(f'Key {key} not found in {cls.__name__}')
 
+    def __hash__(self):
+        return hash(repr(self))
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    @classmethod
+    def has(cls, item):
+        '''Check if an item is a member of the enum
+        The fact that i have to do this and that overriding __contains__ does not work
+        is a testament to how bad the enum module is and how shitty of a language python is.
+        CLASS.has(item) is not pythonic at all but the pythonic way doesn't work, so we
+        have this ugly workaround.
+        '''
+        return hash(item) in [hash(v) for v in cls._member_map_.values()]
+
 
 @unique
 class META(KeyEnum):
-    TIME         = 0
-    LATITUDE     = auto()
-    LONGITUDE    = auto()
-    ORIENTATION  = auto()
-    TILT         = auto()
-    KWP          = auto()
-    SOLAR_ANGLES = auto()
+    TIME        = 0
+    LATITUDE    = auto()
+    LONGITUDE   = auto()
+    ORIENTATION = auto()
+    TILT        = auto()
+    KWP         = auto()
 
 
 @unique
@@ -100,10 +116,10 @@ class AEROSOLS(KeyEnum):
     SO2_CONC   = auto()
 
 
-# cheats for model training
 @unique
-class FUTURE(KeyEnum):
-    NONHRV = 0
+class COMPUTED(KeyEnum):
+    SOLAR_ANGLES  = 0
+    FUTURE_NONHRV = auto()
 
 
 WEATHER_RANGES = {

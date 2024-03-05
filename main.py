@@ -21,7 +21,7 @@ from ema_pytorch import EMA
 from data.random_data import get_dataloaders
 import submission.util as util
 
-from submission.models import keys
+from submission.models.keys import META, COMPUTED, HRV, NONHRV, WEATHER, AEROSOLS
 from submission.models import build_model
 
 
@@ -53,12 +53,12 @@ def eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground_
     logger.info("started eval")
 
     with torch.no_grad():
-        for i, (pv_features, meta, hrv, nonhrv, weather, aerosols, pv_targets) in enumerate(dataloader):
-            meta, hrv, nonhrv, weather, aerosols = map(util.dict_to_device, (meta, hrv, nonhrv, weather, aerosols))
+        for i, (pv_features, features, pv_targets) in enumerate(dataloader):
+            features = util.dict_to_device(features)
             pv_features = pv_features.to(device, dtype=torch.float)
             pv_targets = pv_targets.to(device, dtype=torch.float)
 
-            predictions = model(pv_features, meta, hrv, nonhrv, weather, aerosols)
+            predictions = model(pv_features, features)
 
             gt[i * dataloader.batch_size: (i + 1) * dataloader.batch_size] = pv_targets.cpu().numpy()
             preds[i * dataloader.batch_size: (i + 1) * dataloader.batch_size] = predictions.cpu().numpy()
@@ -109,30 +109,26 @@ def train():
     model = build_model(config).to(device)
 
     train_dataloader, eval_dataloader = get_dataloaders(
-        config=config,
-        meta_features=model.REQUIRED_META,
-        hrv_features=model.REQUIRED_HRV,
-        nonhrv_features=model.REQUIRED_NONHRV,
-        weather_features=model.REQUIRED_WEATHER,
-        aerosols_features=model.REQUIRED_AEROSOLS,
-        future_features=model.REQUIRED_FUTURE if hasattr(model, 'REQUIRED_FUTURE') else None,
+            config=config,
+            features=model.required_features
     )
 
+    features = model.required_features
+    meta_features = {k for k in features if META.has(k)}
+    computed_features = {k for k in features if COMPUTED.has(k)}
+    hrv_features = {k for k in features if HRV.has(k)}
+    nonhrv_features = {k for k in features if NONHRV.has(k)}
+    weather_features = {k for k in features if WEATHER.has(k)}
+    aerosols_features = {k for k in features if AEROSOLS.has(k)}
+    require_future_nonhrv = COMPUTED.FUTURE_NONHRV in features
     summary(model, input_data=(
         torch.zeros((1, 12)),
-        {
-            keys.META.TIME: torch.zeros((1, )),
-            keys.META.LATITUDE: torch.zeros((1, )),
-            keys.META.LONGITUDE: torch.zeros((1, )),
-            keys.META.ORIENTATION: torch.zeros((1, )),
-            keys.META.TILT: torch.zeros((1, )),
-            keys.META.KWP: torch.zeros((1, )),
-            keys.META.SOLAR_ANGLES: torch.zeros((1, 6, 2)),
-        },
-        {k: torch.zeros((1, 12, 128, 128)) for k in model.REQUIRED_HRV},
-        {k: torch.zeros((1, 60 if hasattr(model, 'REQUIRED_FUTURE') else 12, 128, 128)) for k in model.REQUIRED_NONHRV},
-        {k: torch.zeros((1, 6, 128, 128)) for k in model.REQUIRED_WEATHER},
-        {k: torch.zeros((1, 6, 128, 128)) for k in model.REQUIRED_AEROSOLS},
+        {k: torch.zeros((1, )) for k in meta_features} |
+        {COMPUTED.SOLAR_ANGLES: torch.zeros((1, 6, 2))} |
+        {k: torch.zeros((1, 12, 128, 128)) for k in hrv_features} |
+        {k: torch.zeros((1, 60 if require_future_nonhrv  else 12, 128, 128)) for k in nonhrv_features} |
+        {k: torch.zeros((1, 6, 128, 128)) for k in weather_features} |
+        {k: torch.zeros((1, 6, 128, 128)) for k in aerosols_features},
     ), device=device)
 
 
@@ -179,14 +175,14 @@ def train():
         count = 0
         last_time = datetime.now()
 
-        for i, (pv_features, meta, hrv, nonhrv, weather, aerosols, pv_targets) in enumerate(train_dataloader):
+        for i, (pv_features, features, pv_targets) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
-            meta, hrv, nonhrv, weather, aerosols = map(util.dict_to_device, (meta, hrv, nonhrv, weather, aerosols))
+            features = util.dict_to_device(features)
             pv_features = pv_features.to(device, dtype=torch.float)
             pv_targets = pv_targets.to(device, dtype=torch.float)
 
-            predictions = model(pv_features, meta, hrv, nonhrv, weather, aerosols)
+            predictions = model(pv_features, features)
 
             loss = criterion(predictions, pv_targets)
             loss.backward()

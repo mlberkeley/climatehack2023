@@ -73,7 +73,7 @@ def site_normalize(vals):
     #mean, std = norms[val_type]
     #return (val * std) + mean
 
-def dict_to_device(d):
+def dict_to_device(d, device=device):
     return { k: v.to(device, dtype=torch.float) for k, v in d.items() }
 
 def save_config_to_json(config, output_path):
