@@ -1,7 +1,7 @@
 model:
   name: mainmodel2
   config:
-    meta_head: true
+    meta_head: false
     nonhrv_channels: 
       # - IR_016
       - VIS008
@@ -22,7 +22,7 @@ eval:
 data:
   num_workers: 16
   root: /data/climatehack/
-  train_start_date: 2021-01-01 00:00:00
+  train_start_date: 2020-01-01 00:00:00
   train_end_date: 2022-01-01 00:00:00
   # subsets are randomly sampled from the full dataset using a seed of 21
   # 0 means use all data

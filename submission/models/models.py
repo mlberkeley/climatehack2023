@@ -87,7 +87,7 @@ class MainModel2(nn.Module):
 
         self.meta_and_pv = MetaAndPv()
 
-        self.nonhrv_backbones = nn.ModuleList([models.resnet18() for i in range(len(self.nonhrv_channels))])
+        self.nonhrv_backbones = nn.ModuleList([models.resnext50_32x4d() for i in range(len(self.nonhrv_channels))])
         for bone in self.nonhrv_backbones:
             bone.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3, bias=False)
             bone.fc = nn.Identity()
@@ -99,13 +99,13 @@ class MainModel2(nn.Module):
 
         if self.meta_head:
             self.linear1 = nn.Linear(
-                    len(self.nonhrv_channels) * 512 +
+                    len(self.nonhrv_channels) * 512 * 4 +
                     len(self.weather_channels) * 512 +
                     self.meta_and_pv.output_dim,
                 256)
         else:
             self.linear1 = nn.Linear(
-                    len(self.nonhrv_channels) * 512 +
+                    len(self.nonhrv_channels) * 512 * 4 +
                     len(self.weather_channels) * 512 +
                     12 + 12,
                 256)
