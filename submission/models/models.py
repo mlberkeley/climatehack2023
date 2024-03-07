@@ -89,7 +89,7 @@ class MainModel2(nn.Module):
 
         self.nonhrv_backbones = nn.ModuleList([models.resnext50_32x4d() for i in range(len(self.nonhrv_channels))])
         for bone in self.nonhrv_backbones:
-            bone.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3, bias=False)
+            bone.conv1 = nn.Conv2d(6, 64, kernel_size=7, stride=2, padding=3, bias=True)
             bone.fc = nn.Identity()
 
         self.weather_backbones = nn.ModuleList([models.resnet18() for i in range(len(self.weather_channels))])
@@ -108,11 +108,12 @@ class MainModel2(nn.Module):
                     len(self.nonhrv_channels) * 512 * 4 +
                     len(self.weather_channels) * 512 +
                     12 + 12,
-                256)
+                384, bias=True)
 
-        self.linear2 = nn.Linear(256, 256, bias=True)
-        self.linear3 = nn.Linear(256, 48)
-        self.r = nn.ReLU(inplace=True)
+        self.linear2 = nn.Linear(384, 384)
+        self.dropout = nn.Dropout(0.25)
+        self.linear3 = nn.Linear(384, 48)
+        self.r = nn.GELU()
 
     @property
     def required_features(self):
@@ -120,7 +121,7 @@ class MainModel2(nn.Module):
 
     def forward(self, pv, features):
         if self.nonhrv_channels:
-            feat1 = torch.concat([self.nonhrv_backbones[i](features[key]) for i, key in enumerate(self.nonhrv_channels)], dim=-1)
+            feat1 = torch.concat([self.nonhrv_backbones[i](features[key][:, 1::2]) for i, key in enumerate(self.nonhrv_channels)], dim=-1)
         else:
             feat1 = torch.Tensor([]).to("cuda")
 
@@ -140,6 +141,7 @@ class MainModel2(nn.Module):
         all_feat = torch.concat([feat1, feat2, feat3], dim=-1)
 
         x = self.r(self.linear1(all_feat))
+        x = self.dropout(x)
         x = self.r(self.linear2(x))
         x = torch.sigmoid(self.linear3(x))
 
