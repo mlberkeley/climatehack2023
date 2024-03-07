@@ -251,7 +251,11 @@ def train(run_name, config, run_notes, run_group, nowandb, opts):
 @click.argument("ckpt", required=True, type=click.Path(exists=True))
 def eval(ckpt):
     ckpt = Path(ckpt)
-    config = edict(util.load_json_config(ckpt / 'config.json'))
+    config = edict(json.load(open(ckpt / 'config.json', 'r')))
+    config.data.train_start_date = datetime.strptime(config.data.train_start_date, '%Y-%m-%d %H:%M:%S')
+    config.data.train_end_date = datetime.strptime(config.data.train_end_date, '%Y-%m-%d %H:%M:%S')
+    config.data.eval_start_date = datetime.strptime(config.data.eval_start_date, '%Y-%m-%d %H:%M:%S')
+    config.data.eval_end_date = datetime.strptime(config.data.eval_end_date, '%Y-%m-%d %H:%M:%S')
     model = build_model(config).to(device)
     model.load_state_dict(torch.load(ckpt / 'model.pt.best_ema'))
     model.eval()
