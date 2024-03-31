@@ -101,7 +101,16 @@ class Evaluator(BaseEvaluator):
                 # site_features = util.site_normalize(torch.from_numpy(site_features).to(device))
                 input_data = util.dict_to_device(input_data, device)
 
-                yield self.model(pv, input_data).cpu()
+                predictions0 = self.model(pv, input_data)
+
+                input_data[NONHRV.VIS008] = input_data[NONHRV.VIS008].flip(-1)
+
+                predictions1 = self.model(pv, input_data)
+
+                predictions = (predictions0 + predictions1) / 2
+
+                # yield self.model(pv, input_data).cpu()
+                yield predictions.cpu()
 
 
 if __name__ == "__main__":

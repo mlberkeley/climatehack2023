@@ -18,8 +18,8 @@ from tqdm import tqdm
 
 # Think about whether all channels need to be flipped together or not
 TRAIN_TRANSFORM = transforms.Compose([
-    # transforms.RandomErasing(p=0.25, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=True),
-    # transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomErasing(p=0.25, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0, inplace=True),
+    transforms.RandomHorizontalFlip(p=0.5),
     # # transforms.RandomVerticalFlip(p=0.5),
     # transforms.RandomApply([
     #     transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),

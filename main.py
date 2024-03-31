@@ -50,7 +50,14 @@ def _eval(dataloader, model, criterion=nn.L1Loss(), preds_save_path=None, ground
             pv_features = pv_features.to(device, dtype=torch.float)
             pv_targets = pv_targets.to(device, dtype=torch.float)
 
-            predictions = model(pv_features, features)
+            predictions0 = model(pv_features, features)
+
+            features[NONHRV.VIS008] = features[NONHRV.VIS008].flip(-1)
+
+            predictions1 = model(pv_features, features)
+
+            predictions = (predictions0 + predictions1) / 2
+            # predictions = predictions0
 
             gt[i * dataloader.batch_size: (i + 1) * dataloader.batch_size] = pv_targets.cpu().numpy()
             preds[i * dataloader.batch_size: (i + 1) * dataloader.batch_size] = predictions.cpu().numpy()
